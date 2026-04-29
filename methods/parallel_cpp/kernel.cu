@@ -271,33 +271,76 @@ __global__ void linear_kernel(
     }
 }
 
+__device__ void softmax(double* &logits, int n) {
+    // Convert arbitrary logits into a probability distribution.
+    //
+    // Math:
+    // probs[i] = exp(logits[i]) / sum_j exp(logits[j])
+    //
+    // We subtract max_logit first for numerical stability so exp() does not overflow.
+    const double max_logit = *std::max_element(logits.begin(), logits.end());
+    std::vector<double> probs(logits.size(), 0.0);
+    double exp_sum = 0.0;
+    for (std::size_t idx = 0; idx < logits.size(); ++idx) {
+        probs[idx] = std::exp(logits[idx] - max_logit);
+        exp_sum += probs[idx];
+    }
+    for (double& prob : probs) {
+        prob /= exp_sum;
+    }
+    return probs;
+}
+
 
 __global__ void self_attn_kernel(
     double* q,
-    double* k_a,
-    const double* weights,
-    int in_dim,
-    int out_dim,
+    double* k_layer,
+    double* v_layer, 
+    int n_head, 
+    double* attn_out, 
     int num_batches,
-    int usable_seq_len
+    int usable_seq_len, 
+    int head_dim, 
+    int n_embd
 ) {
     int total_tokens = num_batches * usable_seq_len;
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    
+    int token_pos = idx % usable_seq_len; 
 
     if (idx >= total_tokens) return;
 
-    int input_start = idx * in_dim;
-    int output_start = idx * out_dim;
+    int seq_id = idx / usable_seq_len; 
+    
+    int sequence_start = seq_id * usable_seq_len * n_embd;
+    double* q_token = q + sequence_start + (token_pos * n_embd);  
 
-    for (int out = 0; out < out_dim; ++out) {
-        double sum = 0.0;
 
-        for (int in = 0; in < in_dim; ++in) {
-            sum += weights[out * in_dim + in] * input[input_start + in];
+
+
+
+    for (int head = 0; head < n_head; ++head) {
+        const int head_start = head * head_dim;
+        double attn_logits[100]; 
+        for (int t = 0; t <= token_pos; ++t) {
+            double* k_layer_start = k_layer + sequence_start + (t * n_embd);  
+            double dot = 0.0;
+            for (int j = 0; j < head_dim; ++j) {
+                dot += q_token[head_start + j] * k_layer_start[head_start + j];
+            }
+            attn_logits[t] = dot / std::sqrt(static_cast<double>(head_dim));
         }
 
-        output[output_start + out] = sum;
+        const std::vector<double> attn_weights = softmax(attn_logits);
+        for (int t = 0; t <= token_pos; ++t) {
+            double* v_layer_start = v_layer + sequence_start + (t * n_embd);  
+            const double weight = attn_weights[t];
+            for (int j = 0; j < head_dim; ++j) {
+                attn_out[head_start + j] += weight * v_layer_start[head_start + j];
+            }
+        }
     }
+    
 }
 
 

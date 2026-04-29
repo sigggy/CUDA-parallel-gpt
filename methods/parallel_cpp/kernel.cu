@@ -1,7 +1,9 @@
 #include "kernel.hpp"
 
+#include <cmath>
 #include <cuda_runtime.h>
 
+#include <device_atomic_functions.h>
 #include <driver_types.h>
 #include <stdexcept>
 #include <string>
@@ -325,7 +327,6 @@ __device__ void softmax(double* logits, int n) {
 }
 
 
-
 __global__ void self_attn_kernel(
     double* q,
     double* k_layer,
@@ -375,30 +376,42 @@ __global__ void self_attn_kernel(
 }
 
 
-__global__ void logits_and_loss_kernel_outline(
-    const double* hidden,
-    const int* tokens,
-    const double* lm_head,
+__global__ void logits_and_loss_kernel(
     double* logits,
     double* loss,
     int batch_size,
-    int batch_seq_length,
+    int usable_seq_len,
     int n_embd,
-    int vocab_size
+    int vocab_size, 
+    int* tokens, 
 ) {
-    // TODO:
-    // - project hidden[b, t, :] into logits[b, t, :]
-    // - compare against tokens[b, t + 1] for valid positions only
-    // - reduce the per-position losses into one scalar
-    (void)hidden;
-    (void)tokens;
-    (void)lm_head;
-    (void)logits;
-    (void)loss;
-    (void)batch_size;
-    (void)batch_seq_length;
-    (void)n_embd;
-    (void)vocab_size;
+    int total_items = batch_size * usable_seq_len;
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    
+    int token_pos = idx % usable_seq_len; 
+
+    if (idx >= total_items) return;
+
+    int logits_token_start_idx = token_pos * vocab_size; 
+
+    double* logits_token_start = logits + logits_token_start_idx;
+    softmax(logits_token_start, vocab_size);
+
+    __syncthreads();
+
+    int next_token_id = tokens[token_pos + 1];
+    
+    double val = -std::log(logits_token_start[next_token_id]);
+    atomicAdd(loss, val);
+
+
+    __syncthreads();
+
+
+    if (idx == 0) {
+        *loss = *loss / static_cast<double>(usable_seq_len * batch_size);
+    }
+
 }
 
 void launch_embedding(const DeviceModel& device_model, DeviceWorkspace* workspace, const ModelConfig& config, const BatchTokens& batch) {
@@ -568,10 +581,7 @@ void launch_transformer(const DeviceModel& device_model, DeviceWorkspace* worksp
     */
 
     const int usable_seq_len = outline_usable_seq_len(config, batch);
-    const auto launch = make_1d_launch(
-        static_cast<std::size_t>(batch.batch_size) * static_cast<std::size_t>(usable_seq_len) *
-        static_cast<std::size_t>(config.n_embd)
-    );
+
 
     launch_embedding(device_model, workspace, config, batch);
     launch_rmsnorm(workspace->embeddings.ptr, workspace->x.ptr, config.n_embd, batch.batch_size, usable_seq_len);
@@ -600,13 +610,20 @@ void launch_transformer(const DeviceModel& device_model, DeviceWorkspace* worksp
     }
 }
 
-void launch_logits_and_loss_outline(const DeviceModel& device_model, DeviceWorkspace* workspace, const ModelConfig& config, const BatchTokens& batch) {
+void launch_logits_and_loss(const DeviceModel& device_model, DeviceWorkspace* workspace, const ModelConfig& config, const BatchTokens& batch) {
     // Pseudocode:
     // 1. Project hidden[b, t, :] -> logits[b, t, :]
     // 2. Compute per-position cross-entropy against tokens[b, t + 1]
     // 3. Reduce into one scalar loss
     //
     // You can start with one kernel for logits and one kernel for the loss reduction.
+    const int usable_seq_len = outline_usable_seq_len(config, batch);
+
+
+    launch_linear(workspace->x.ptr, workspace->logits.ptr, device_model.lm_head.ptr, config.n_embd, config.vocab_size, batch.batch_size, usable_seq_len);
+    //TODO write launch_softmax function (create a new softmax thats seperate form the device only one)
+    
+    
     (void)device_model;
     (void)workspace;
     (void)config;
@@ -636,7 +653,7 @@ KernelResult run_forward_batched(const DeviceModel& device_model, const BatchTok
     DeviceWorkspace workspace = allocate_workspace(device_model.config, batch, usable_seq_len);
     try {
            launch_transformer(device_model, &workspace, device_model.config, batch);
-    //     launch_logits_and_loss_outline(device_model, &workspace, device_model.config, batch);
+           launch_logits_and_loss(device_model, &workspace, device_model.config, batch);
     //     cuda_check(cudaDeviceSynchronize(), "synchronizing CUDA kernels");
     //     // copy logits / loss back to host
     //     // pack a KernelResult and return it

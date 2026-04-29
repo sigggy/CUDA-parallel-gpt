@@ -39,8 +39,20 @@ struct BatchBucket {
 
 const std::unordered_map<std::string, BenchmarkPreset> kBenchmarkPresets = {
     {"small", {ModelConfig{1, 64, 64, 4, 0}, 200}},
-    {"medium", {ModelConfig{2, 128, 64, 8, 0}, 200}},
-    {"large", {ModelConfig{4, 256, 128, 8, 0}, 100}},
+    {"medium", {ModelConfig{2, 128, 64, 8, 0}, 1000}},
+    {"large", {ModelConfig{4, 256, 128, 8, 0}, 2500}},
+    {"very-large", {ModelConfig{6, 384, 128, 12, 0}, 5000}},
+    {"extra-large", {ModelConfig{8, 512, 256, 16, 0}, 10000}},
+    {"names-1k", {ModelConfig{1, 64, 64, 4, 0}, 1000}},
+    {"names-5k", {ModelConfig{1, 64, 64, 4, 0}, 5000}},
+    {"names-10k", {ModelConfig{1, 64, 64, 4, 0}, 10000}},
+    {"names-20k", {ModelConfig{2, 128, 64, 8, 0}, 20000}},
+    {"names-30k", {ModelConfig{2, 128, 64, 8, 0}, 30000}},
+    {"model-small-1k", {ModelConfig{1, 64, 64, 4, 0}, 1000}},
+    {"model-medium-1k", {ModelConfig{2, 128, 64, 8, 0}, 1000}},
+    {"model-large-1k", {ModelConfig{4, 256, 128, 8, 0}, 1000}},
+    {"model-very-large-1k", {ModelConfig{6, 384, 128, 12, 0}, 1000}},
+    {"model-extra-large-1k", {ModelConfig{8, 512, 256, 16, 0}, 1000}},
 };
 
 BatchTokens make_repeated_batch(const std::vector<int>& tokens, int batch_size) {

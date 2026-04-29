@@ -131,6 +131,20 @@ Optional presets:
 - `small`
 - `medium`
 - `large`
+- `very-large`
+- `extra-large`
+- `names-1k`
+- `names-5k`
+- `names-10k`
+- `names-20k`
+- `names-30k`
+- `model-small-1k`
+- `model-medium-1k`
+- `model-large-1k`
+- `model-very-large-1k`
+- `model-extra-large-1k`
+
+`small` through `extra-large` increase both model size and number of names, up to 10k names. The `names-*` presets keep the model small-to-medium while increasing the number of names, up to 30k names. The `model-*-1k` presets keep names fixed around 1k while increasing all model-size dimensions. The pure scalar `serial_python` method is only run on `small` by the benchmark drivers.
 
 Override how many names are processed if needed:
 
@@ -163,7 +177,7 @@ bash scripts/run_benchmarks.sh
 
 ### Run the Python benchmark driver
 
-The Python benchmark driver writes structured results to JSON and skips unavailable optional methods such as CUDA or PyTorch when their dependencies are missing.
+The Python benchmark driver writes structured results to JSON as it goes and skips unavailable optional methods such as CUDA or PyTorch when their dependencies are missing.
 
 ```bash
 python3 scripts/run_benchmarks.py

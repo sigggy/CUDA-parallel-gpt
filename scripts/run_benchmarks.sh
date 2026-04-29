@@ -18,6 +18,18 @@ parallel_valid=0
 baseline_small=""
 baseline_medium=""
 baseline_large=""
+baseline_very_large=""
+baseline_extra_large=""
+baseline_names_1k=""
+baseline_names_5k=""
+baseline_names_10k=""
+baseline_names_20k=""
+baseline_names_30k=""
+baseline_model_small_1k=""
+baseline_model_medium_1k=""
+baseline_model_large_1k=""
+baseline_model_very_large_1k=""
+baseline_model_extra_large_1k=""
 
 set_valid() {
     case "$1" in
@@ -45,6 +57,18 @@ set_baseline() {
         small) baseline_small="$2" ;;
         medium) baseline_medium="$2" ;;
         large) baseline_large="$2" ;;
+        very-large) baseline_very_large="$2" ;;
+        extra-large) baseline_extra_large="$2" ;;
+        names-1k) baseline_names_1k="$2" ;;
+        names-5k) baseline_names_5k="$2" ;;
+        names-10k) baseline_names_10k="$2" ;;
+        names-20k) baseline_names_20k="$2" ;;
+        names-30k) baseline_names_30k="$2" ;;
+        model-small-1k) baseline_model_small_1k="$2" ;;
+        model-medium-1k) baseline_model_medium_1k="$2" ;;
+        model-large-1k) baseline_model_large_1k="$2" ;;
+        model-very-large-1k) baseline_model_very_large_1k="$2" ;;
+        model-extra-large-1k) baseline_model_extra_large_1k="$2" ;;
     esac
 }
 
@@ -53,6 +77,18 @@ get_baseline() {
         small) printf "%s" "$baseline_small" ;;
         medium) printf "%s" "$baseline_medium" ;;
         large) printf "%s" "$baseline_large" ;;
+        very-large) printf "%s" "$baseline_very_large" ;;
+        extra-large) printf "%s" "$baseline_extra_large" ;;
+        names-1k) printf "%s" "$baseline_names_1k" ;;
+        names-5k) printf "%s" "$baseline_names_5k" ;;
+        names-10k) printf "%s" "$baseline_names_10k" ;;
+        names-20k) printf "%s" "$baseline_names_20k" ;;
+        names-30k) printf "%s" "$baseline_names_30k" ;;
+        model-small-1k) printf "%s" "$baseline_model_small_1k" ;;
+        model-medium-1k) printf "%s" "$baseline_model_medium_1k" ;;
+        model-large-1k) printf "%s" "$baseline_model_large_1k" ;;
+        model-very-large-1k) printf "%s" "$baseline_model_very_large_1k" ;;
+        model-extra-large-1k) printf "%s" "$baseline_model_extra_large_1k" ;;
     esac
 }
 
@@ -168,10 +204,10 @@ for method in serial_python serial_torch parallel_torch serial_cpp parallel_cpp;
     fi
 done
 
-for preset in small medium large; do
+for preset in small medium large very-large extra-large names-1k names-5k names-10k names-20k names-30k model-small-1k model-medium-1k model-large-1k model-very-large-1k model-extra-large-1k; do
     printf "\nPreset: %s\n" "$preset"
     for method in serial_cpp serial_python serial_torch parallel_torch parallel_cpp; do
-        if [ "$method" = "serial_python" ] && [ "$preset" = "large" ]; then
+        if [ "$method" = "serial_python" ] && [ "$preset" != "small" ]; then
             printf "%s: skipped for preset=%s\n" "$method" "$preset"
             continue
         fi

@@ -17,10 +17,26 @@ DATASET = ROOT_DIR / "training_data" / "datasets" / "names.txt"
 FIXTURE_DIR = ROOT_DIR / "training_data" / "fixtures" / "small_case"
 DEFAULT_OUTPUT = ROOT_DIR / "benchmark_results.json"
 METHODS = ("serial_python", "serial_torch", "parallel_torch", "serial_cpp", "parallel_cpp")
-PRESETS = ("small", "medium", "large")
+PRESETS = (
+    "small",
+    "medium",
+    "large",
+    "very-large",
+    "extra-large",
+    "names-1k",
+    "names-5k",
+    "names-10k",
+    "names-20k",
+    "names-30k",
+    "model-small-1k",
+    "model-medium-1k",
+    "model-large-1k",
+    "model-very-large-1k",
+    "model-extra-large-1k",
+)
 DEFAULT_BATCH_SIZE = "32"
 METHOD_PRESETS = {
-    "serial_python": {"small", "medium"},
+    "serial_python": {"small"},
 }
 
 
@@ -59,6 +75,10 @@ def parse_key_value_line(text: str) -> dict[str, str]:
         if fields:
             break
     return fields
+
+
+def write_results(output_path: Path, results: dict[str, object]) -> None:
+    output_path.write_text(json.dumps(results, indent=2) + "\n")
 
 
 def run_validate_method(method: str) -> CommandResult:
@@ -190,8 +210,11 @@ def main() -> int:
                 "reason": "nvcc not found on PATH",
             }
         }
+        print("build parallel_cpp: skipped, nvcc not found on PATH", flush=True)
+        write_results(output_path, results)
 
     for command in build_commands:
+        print(f"build: {' '.join(command)}", flush=True)
         build_result = run_command(command)
         results["build"]["core"] = {
             "command": command,
@@ -199,8 +222,9 @@ def main() -> int:
             "stdout": build_result.stdout,
             "stderr": build_result.stderr,
         }
+        print(f"build core: {'pass' if build_result.returncode == 0 else 'fail'}", flush=True)
+        write_results(output_path, results)
         if build_result.returncode != 0:
-            output_path.write_text(json.dumps(results, indent=2) + "\n")
             return build_result.returncode
 
     valid_methods: dict[str, bool] = {}
@@ -211,6 +235,8 @@ def main() -> int:
                 "status": "skipped",
                 "reason": "torch not installed",
             }
+            print(f"validate {method}: skipped, torch not installed", flush=True)
+            write_results(output_path, results)
             continue
         if method == "parallel_cpp" and shutil.which("nvcc") is None:
             valid_methods[method] = False
@@ -218,8 +244,11 @@ def main() -> int:
                 "status": "skipped",
                 "reason": "nvcc not found on PATH",
             }
+            print(f"validate {method}: skipped, nvcc not found on PATH", flush=True)
+            write_results(output_path, results)
             continue
 
+        print(f"validate {method}: running", flush=True)
         validate_result = run_validate_method(method)
         valid_methods[method] = validate_result.returncode == 0
         results["validate"][method] = {
@@ -228,6 +257,8 @@ def main() -> int:
             "stdout": validate_result.stdout,
             "stderr": validate_result.stderr,
         }
+        print(f"validate {method}: {results['validate'][method]['status']}", flush=True)
+        write_results(output_path, results)
 
     for preset in PRESETS:
         for method in METHODS:
@@ -241,6 +272,8 @@ def main() -> int:
                         "reason": "preset disabled for method",
                     }
                 )
+                print(f"benchmark {method} {preset}: skipped, preset disabled for method", flush=True)
+                write_results(output_path, results)
                 continue
 
             if not valid_methods.get(method, False):
@@ -251,23 +284,30 @@ def main() -> int:
                         "status": "skipped",
                     }
                 )
+                print(f"benchmark {method} {preset}: skipped, method invalid", flush=True)
+                write_results(output_path, results)
                 continue
 
+            print(f"benchmark {method} {preset}: running", flush=True)
             benchmark_result = run_benchmark_method(method, preset)
             parsed = parse_key_value_line(benchmark_result.stdout)
-            results["benchmarks"].append(
-                {
-                    "method": method,
-                    "preset": preset,
-                    "status": "pass" if benchmark_result.returncode == 0 else "fail",
-                    "returncode": benchmark_result.returncode,
-                    "stdout": benchmark_result.stdout,
-                    "stderr": benchmark_result.stderr,
-                    "parsed": parsed,
-                }
-            )
+            benchmark_entry = {
+                "method": method,
+                "preset": preset,
+                "status": "pass" if benchmark_result.returncode == 0 else "fail",
+                "returncode": benchmark_result.returncode,
+                "stdout": benchmark_result.stdout,
+                "stderr": benchmark_result.stderr,
+                "parsed": parsed,
+            }
+            results["benchmarks"].append(benchmark_entry)
+            summary = ""
+            if "total_program_seconds" in parsed:
+                summary = f" total_program_seconds={parsed['total_program_seconds']}"
+            print(f"benchmark {method} {preset}: {benchmark_entry['status']}{summary}", flush=True)
+            write_results(output_path, results)
 
-    output_path.write_text(json.dumps(results, indent=2) + "\n")
+    write_results(output_path, results)
     print(f"wrote benchmark results to {output_path}")
     return 0
 

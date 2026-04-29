@@ -8,8 +8,11 @@ BUILD_DIR="$ROOT_DIR/build"
 DATASET="$ROOT_DIR/training_data/datasets/names.txt"
 FIXTURE_DIR="$ROOT_DIR/training_data/fixtures/small_case"
 PYTHON_BIN="${PYTHON:-python3}"
+DEFAULT_BATCH_SIZE="${BATCH_SIZE:-32}"
 
 serial_python_valid=0
+serial_torch_valid=0
+parallel_torch_valid=0
 serial_valid=0
 parallel_valid=0
 baseline_small=""
@@ -19,6 +22,8 @@ baseline_large=""
 set_valid() {
     case "$1" in
         serial_python) serial_python_valid="$2" ;;
+        serial_torch) serial_torch_valid="$2" ;;
+        parallel_torch) parallel_torch_valid="$2" ;;
         serial_cpp) serial_valid="$2" ;;
         parallel_cpp) parallel_valid="$2" ;;
     esac
@@ -27,6 +32,8 @@ set_valid() {
 is_valid() {
     case "$1" in
         serial_python) [ "$serial_python_valid" -eq 1 ] ;;
+        serial_torch) [ "$serial_torch_valid" -eq 1 ] ;;
+        parallel_torch) [ "$parallel_torch_valid" -eq 1 ] ;;
         serial_cpp) [ "$serial_valid" -eq 1 ] ;;
         parallel_cpp) [ "$parallel_valid" -eq 1 ] ;;
         *) return 1 ;;
@@ -55,8 +62,17 @@ run_validate_method() {
         serial_python)
             "$PYTHON_BIN" "$ROOT_DIR/methods/serial_python/serial.py" --mode validate --fixture-dir "$FIXTURE_DIR"
             ;;
-        serial_cpp|parallel_cpp)
+        serial_torch)
+            "$PYTHON_BIN" "$ROOT_DIR/methods/serial_torch/serial.py" --mode validate --fixture-dir "$FIXTURE_DIR"
+            ;;
+        parallel_torch)
+            "$PYTHON_BIN" "$ROOT_DIR/methods/parallel_torch/parallel.py" --mode validate --fixture-dir "$FIXTURE_DIR" --batch-size "$DEFAULT_BATCH_SIZE"
+            ;;
+        serial_cpp)
             "$BUILD_DIR/$method" --mode validate --fixture-dir "$FIXTURE_DIR"
+            ;;
+        parallel_cpp)
+            "$BUILD_DIR/$method" --mode validate --fixture-dir "$FIXTURE_DIR" --batch-size "$DEFAULT_BATCH_SIZE"
             ;;
         *)
             return 1
@@ -80,11 +96,43 @@ benchmark_once() {
                 return 1
             fi
             ;;
-        serial_cpp|parallel_cpp)
+        serial_torch)
+            if ! /usr/bin/time -p "$PYTHON_BIN" "$ROOT_DIR/methods/serial_torch/serial.py" \
+                --mode benchmark \
+                --dataset "$DATASET" \
+                --preset "$preset" \
+                > /dev/null 2> "$time_file"; then
+                rm -f "$time_file"
+                return 1
+            fi
+            ;;
+        parallel_torch)
+            if ! /usr/bin/time -p "$PYTHON_BIN" "$ROOT_DIR/methods/parallel_torch/parallel.py" \
+                --mode benchmark \
+                --dataset "$DATASET" \
+                --preset "$preset" \
+                --batch-size "$DEFAULT_BATCH_SIZE" \
+                > /dev/null 2> "$time_file"; then
+                rm -f "$time_file"
+                return 1
+            fi
+            ;;
+        serial_cpp)
             if ! /usr/bin/time -p "$BUILD_DIR/$method" \
                 --mode benchmark \
                 --dataset "$DATASET" \
                 --preset "$preset" \
+                > /dev/null 2> "$time_file"; then
+                rm -f "$time_file"
+                return 1
+            fi
+            ;;
+        parallel_cpp)
+            if ! /usr/bin/time -p "$BUILD_DIR/$method" \
+                --mode benchmark \
+                --dataset "$DATASET" \
+                --preset "$preset" \
+                --batch-size "$DEFAULT_BATCH_SIZE" \
                 > /dev/null 2> "$time_file"; then
                 rm -f "$time_file"
                 return 1
@@ -110,7 +158,7 @@ if ! make -C "$ROOT_DIR" fixtures all; then
     exit 1
 fi
 
-for method in serial_python serial_cpp parallel_cpp; do
+for method in serial_python serial_torch parallel_torch serial_cpp parallel_cpp; do
     printf "Validating %s...\n" "$method"
     if run_validate_method "$method"; then
         set_valid "$method" 1
@@ -122,7 +170,11 @@ done
 
 for preset in small medium large; do
     printf "\nPreset: %s\n" "$preset"
-    for method in serial_cpp serial_python parallel_cpp; do
+    for method in serial_cpp serial_python serial_torch parallel_torch parallel_cpp; do
+        if [ "$method" = "serial_python" ] && [ "$preset" = "large" ]; then
+            printf "%s: skipped for preset=%s\n" "$method" "$preset"
+            continue
+        fi
         if ! is_valid "$method"; then
             printf "%s: INVALID\n" "$method"
             continue

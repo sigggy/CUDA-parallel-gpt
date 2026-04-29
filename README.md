@@ -2,6 +2,14 @@
 
 ## Commands
 
+### Install Python dependencies
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+The PyTorch methods require `torch`.
+
 ### Build everything
 
 ```bash
@@ -36,6 +44,23 @@ python3 methods/serial_python/serial.py \
   --fixture-dir training_data/fixtures/small_case
 ```
 
+Serial PyTorch:
+
+```bash
+python3 methods/serial_torch/serial.py \
+  --mode validate \
+  --fixture-dir training_data/fixtures/small_case
+```
+
+Batched PyTorch:
+
+```bash
+python3 methods/parallel_torch/parallel.py \
+  --mode validate \
+  --fixture-dir training_data/fixtures/small_case \
+  --batch-size 6
+```
+
 Serial C++:
 
 ```bash
@@ -48,7 +73,7 @@ Parallel C++:
 build/parallel_cpp --mode validate --fixture-dir training_data/fixtures/small_case
 ```
 
-Note: `parallel_cpp` requires a CUDA build and `nvcc` on `PATH`. The CUDA target is built as C++14 for compatibility with older `nvcc` versions.
+Note: `parallel_cpp` requires a CUDA build and `nvcc` on `PATH`. The CUDA target is built as C++14 for compatibility with older `nvcc` versions. You can pass `--batch-size N` in validate mode to validate one batch containing N copies of the fixture sequence.
 
 ### Benchmark a single method
 
@@ -59,6 +84,25 @@ python3 methods/serial_python/serial.py \
   --mode benchmark \
   --dataset training_data/datasets/names.txt \
   --preset small
+```
+
+Serial PyTorch:
+
+```bash
+python3 methods/serial_torch/serial.py \
+  --mode benchmark \
+  --dataset training_data/datasets/names.txt \
+  --preset small
+```
+
+Batched PyTorch:
+
+```bash
+python3 methods/parallel_torch/parallel.py \
+  --mode benchmark \
+  --dataset training_data/datasets/names.txt \
+  --preset small \
+  --batch-size 6
 ```
 
 Serial C++:
@@ -80,7 +124,7 @@ build/parallel_cpp \
   --batch-size 6
 ```
 
-Note: `parallel_cpp` preprocesses benchmark names into fixed-length batches before launching the CUDA forward path. Each batch contains only sequences with the same token length; the final batch for a length bucket may be smaller than `--batch-size`.
+Note: `parallel_torch` and `parallel_cpp` preprocess benchmark names into fixed-length batches before launching the tensor/CUDA forward path. Each batch contains only sequences with the same token length; the final batch for a length bucket may be smaller than `--batch-size`.
 
 Optional presets:
 
@@ -117,10 +161,26 @@ This rebuilds, regenerates fixtures, validates all methods, then times each vali
 bash scripts/run_benchmarks.sh
 ```
 
+### Run the Python benchmark driver
+
+The Python benchmark driver writes structured results to JSON and skips unavailable optional methods such as CUDA or PyTorch when their dependencies are missing.
+
+```bash
+python3 scripts/run_benchmarks.py
+```
+
+To choose the output path:
+
+```bash
+python3 scripts/run_benchmarks.py benchmark_results.json
+```
+
 ## Repo Layout
 
 - `methods/serial_python/kernel.py`: Python reference forward kernel.
 - `methods/serial_python/serial.py`: Python runner for fixture generation, validation, and benchmarking.
+- `methods/serial_torch/serial.py`: PyTorch runner that processes one tokenized name at a time.
+- `methods/parallel_torch/parallel.py`: PyTorch runner that groups equal-length names into batches.
 - `methods/serial_cpp/kernel.cpp`: Serial C++ forward kernel.
 - `methods/serial_cpp/utils.cpp`: Serial C++ model setup and serialization helpers kept separate from kernel math.
 - `methods/serial_cpp/main.cpp`: Serial C++ runner.
@@ -147,11 +207,13 @@ The Python version is the reference implementation. It is used to generate deter
 
 Those files live in `training_data/fixtures/small_case/`. Validation works by loading the fixture weights, running the method’s forward pass on the fixed token sequence from the manifest, and comparing the outputs against the Python ground truth within an epsilon.
 
-Benchmarking keeps the GPT-style data flow without the training update. Each executable loads the dataset, builds the vocabulary, initializes weights from the fixed seed, and then processes the first `k` names in dataset order, where `k` is the preset size or `--num-steps`. The serial methods run one tokenized name at a time. The CUDA method tokenizes the selected names up front, greedily groups them by equal token sequence length into batches of up to `--batch-size`, then loops over the resulting batch array. The outer script uses `/usr/bin/time -p` and reports the raw wall-clock `real` time from one run. This means timing includes process startup and dataset loading for every method equally.
+Benchmarking keeps the GPT-style data flow without the training update. Each executable loads the dataset, builds the vocabulary, initializes weights from the fixed seed, and then processes the first `k` names in dataset order, where `k` is the preset size or `--num-steps`. The serial methods run one tokenized name at a time. The batched PyTorch and CUDA methods tokenize the selected names up front, greedily group them by equal token sequence length into batches of up to `--batch-size`, then loop over the resulting batch array. The outer script uses `/usr/bin/time -p` and reports the raw wall-clock `real` time from one run. This means timing includes process startup and dataset loading for every method equally.
 
 The current methods are:
 
 - `serial_python`: correctness reference and optional timing reference
+- `serial_torch`: PyTorch single-name tensor implementation
+- `parallel_torch`: PyTorch fixed-length batched tensor implementation
 - `serial_cpp`: CPU baseline
 - `parallel_cpp`: CUDA-target forward implementation
 

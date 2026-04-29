@@ -43,10 +43,13 @@ const std::unordered_map<std::string, BenchmarkPreset> kBenchmarkPresets = {
     {"large", {ModelConfig{4, 256, 128, 8, 0}, 100}},
 };
 
-BatchTokens make_batch_of_one(const std::vector<int>& tokens) {
+BatchTokens make_repeated_batch(const std::vector<int>& tokens, int batch_size) {
     BatchTokens batch;
-    batch.tokens = tokens;
-    batch.batch_size = 1;
+    batch.tokens.reserve(static_cast<std::size_t>(batch_size) * tokens.size());
+    for (int idx = 0; idx < batch_size; ++idx) {
+        batch.tokens.insert(batch.tokens.end(), tokens.begin(), tokens.end());
+    }
+    batch.batch_size = batch_size;
     batch.batch_seq_length = static_cast<int>(tokens.size());
     return batch;
 }
@@ -243,6 +246,15 @@ std::vector<float> read_f32_file(const std::string& path) {
     return values;
 }
 
+std::vector<float> repeat_values(const std::vector<float>& values, int repeat_count) {
+    std::vector<float> repeated;
+    repeated.reserve(values.size() * static_cast<std::size_t>(repeat_count));
+    for (int idx = 0; idx < repeat_count; ++idx) {
+        repeated.insert(repeated.end(), values.begin(), values.end());
+    }
+    return repeated;
+}
+
 double compare_arrays(const std::string& label, const std::vector<double>& actual, const std::vector<float>& expected, double epsilon) {
     if (actual.size() != expected.size()) {
         throw std::runtime_error(label + " size mismatch");
@@ -287,11 +299,15 @@ int run_validate(const CliOptions& options) {
     Model host_model = make_empty_model(config);
     load_model_from_f32(host_model, read_f32_file(join_path(options.fixture_dir, manifest.at("weights_init_file"))));
     DeviceModel device_model = upload_model_to_device(host_model);
-    const BatchTokens batch = make_batch_of_one(tokens);
+    std::vector<BatchTokens> batches;
+    batches.push_back(make_repeated_batch(tokens, options.batch_size));
     try {
-        const KernelResult result = run_forward_batched(device_model, batch);
+        KernelResult result;
+        for (std::size_t batch_idx = 0; batch_idx < batches.size(); ++batch_idx) {
+            result = run_forward_batched(device_model, batches[batch_idx]);
+        }
 
-        compare_arrays("logits", result.logits, read_f32_file(join_path(options.fixture_dir, manifest.at("expected_logits_file"))), epsilon);
+        compare_arrays("logits", result.logits, repeat_values(read_f32_file(join_path(options.fixture_dir, manifest.at("expected_logits_file"))), options.batch_size), epsilon);
         compare_arrays("loss", {result.loss}, read_f32_file(join_path(options.fixture_dir, manifest.at("expected_loss_file"))), epsilon);
         std::cout << "validation=pass\n";
     } catch (...) {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import importlib.util
 import shutil
 import subprocess
 import sys
@@ -15,8 +16,12 @@ BUILD_DIR = ROOT_DIR / "build"
 DATASET = ROOT_DIR / "training_data" / "datasets" / "names.txt"
 FIXTURE_DIR = ROOT_DIR / "training_data" / "fixtures" / "small_case"
 DEFAULT_OUTPUT = ROOT_DIR / "benchmark_results.json"
-METHODS = ("serial_python", "serial_cpp", "parallel_cpp")
+METHODS = ("serial_python", "serial_torch", "parallel_torch", "serial_cpp", "parallel_cpp")
 PRESETS = ("small", "medium", "large")
+DEFAULT_BATCH_SIZE = "32"
+METHOD_PRESETS = {
+    "serial_python": {"small", "medium"},
+}
 
 
 @dataclass
@@ -68,14 +73,41 @@ def run_validate_method(method: str) -> CommandResult:
                 str(FIXTURE_DIR),
             ]
         )
+    if method == "serial_torch":
+        return run_command(
+            [
+                sys.executable,
+                str(ROOT_DIR / "methods" / "serial_torch" / "serial.py"),
+                "--mode",
+                "validate",
+                "--fixture-dir",
+                str(FIXTURE_DIR),
+            ]
+        )
+    if method == "parallel_torch":
+        return run_command(
+            [
+                sys.executable,
+                str(ROOT_DIR / "methods" / "parallel_torch" / "parallel.py"),
+                "--mode",
+                "validate",
+                "--fixture-dir",
+                str(FIXTURE_DIR),
+                "--batch-size",
+                DEFAULT_BATCH_SIZE,
+            ]
+        )
+    command = [
+        str(BUILD_DIR / method),
+        "--mode",
+        "validate",
+        "--fixture-dir",
+        str(FIXTURE_DIR),
+    ]
+    if method == "parallel_cpp":
+        command.extend(["--batch-size", DEFAULT_BATCH_SIZE])
     return run_command(
-        [
-            str(BUILD_DIR / method),
-            "--mode",
-            "validate",
-            "--fixture-dir",
-            str(FIXTURE_DIR),
-        ]
+        command
     )
 
 
@@ -93,17 +125,46 @@ def run_benchmark_method(method: str, preset: str) -> CommandResult:
                 preset,
             ]
         )
-    return run_command(
-        [
-            str(BUILD_DIR / method),
-            "--mode",
-            "benchmark",
-            "--dataset",
-            str(DATASET),
-            "--preset",
-            preset,
-        ]
-    )
+    if method == "serial_torch":
+        return run_command(
+            [
+                sys.executable,
+                str(ROOT_DIR / "methods" / "serial_torch" / "serial.py"),
+                "--mode",
+                "benchmark",
+                "--dataset",
+                str(DATASET),
+                "--preset",
+                preset,
+            ]
+        )
+    if method == "parallel_torch":
+        return run_command(
+            [
+                sys.executable,
+                str(ROOT_DIR / "methods" / "parallel_torch" / "parallel.py"),
+                "--mode",
+                "benchmark",
+                "--dataset",
+                str(DATASET),
+                "--preset",
+                preset,
+                "--batch-size",
+                DEFAULT_BATCH_SIZE,
+            ]
+        )
+    command = [
+        str(BUILD_DIR / method),
+        "--mode",
+        "benchmark",
+        "--dataset",
+        str(DATASET),
+        "--preset",
+        preset,
+    ]
+    if method == "parallel_cpp":
+        command.extend(["--batch-size", DEFAULT_BATCH_SIZE])
+    return run_command(command)
 
 
 def main() -> int:
@@ -144,6 +205,13 @@ def main() -> int:
 
     valid_methods: dict[str, bool] = {}
     for method in METHODS:
+        if method.endswith("_torch") and importlib.util.find_spec("torch") is None:
+            valid_methods[method] = False
+            results["validate"][method] = {
+                "status": "skipped",
+                "reason": "torch not installed",
+            }
+            continue
         if method == "parallel_cpp" and shutil.which("nvcc") is None:
             valid_methods[method] = False
             results["validate"][method] = {
@@ -163,6 +231,18 @@ def main() -> int:
 
     for preset in PRESETS:
         for method in METHODS:
+            allowed_presets = METHOD_PRESETS.get(method)
+            if allowed_presets is not None and preset not in allowed_presets:
+                results["benchmarks"].append(
+                    {
+                        "method": method,
+                        "preset": preset,
+                        "status": "skipped",
+                        "reason": "preset disabled for method",
+                    }
+                )
+                continue
+
             if not valid_methods.get(method, False):
                 results["benchmarks"].append(
                     {

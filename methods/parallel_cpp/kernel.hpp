@@ -77,16 +77,19 @@ struct DeviceWorkspace {
   DeviceBuffer<double> hidden;
   // Forward-only transformer workspace and caches for future CUDA kernels.
   DeviceBuffer<double> x;
+  DeviceBuffer<double> x_tmp;
   DeviceBuffer<double> x_mid;
   DeviceBuffer<double> x_norm2;
   DeviceBuffer<double> norm;
   DeviceBuffer<double> q;
   DeviceBuffer<double> k_cache;
-  DeviceBuffer<double> v_cache;
+  DeviceBuffer<double> v_cache; 
   DeviceBuffer<double> attn_out;
   DeviceBuffer<double> mlp_hidden;
   DeviceBuffer<double> logits;
   DeviceBuffer<double> loss;
+  DeviceBuffer<double> relu; 
+  DeviceBuffer<double> fc2; 
 };
 
 struct KernelLaunch {

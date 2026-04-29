@@ -147,11 +147,13 @@ DeviceWorkspace allocate_workspace(const ModelConfig& config, const BatchTokens&
     const std::size_t mlp_hidden_count = sequence_count * time_steps * static_cast<std::size_t>(config.mlp_dim());
     const std::size_t logits_count = sequence_count * time_steps * static_cast<std::size_t>(config.vocab_size);
 
+
     try {
         upload_buffer(&workspace.tokens, batch.tokens);
         allocate_buffer(&workspace.embeddings, hidden_count, true);
         allocate_buffer(&workspace.hidden, hidden_count, true);
         allocate_buffer(&workspace.x, hidden_count, true);
+        allocate_buffer(&workspace.x_tmp, hidden_count, true);
         allocate_buffer(&workspace.x_mid, hidden_count, true);
         allocate_buffer(&workspace.x_norm2, hidden_count, true);
         allocate_buffer(&workspace.norm, hidden_count, true);
@@ -162,6 +164,7 @@ DeviceWorkspace allocate_workspace(const ModelConfig& config, const BatchTokens&
         allocate_buffer(&workspace.mlp_hidden, mlp_hidden_count, true);
         allocate_buffer(&workspace.logits, logits_count, true);
         allocate_buffer(&workspace.loss, 1, true);
+        allocate_buffer(&workspace.fc2, hidden_count, true);
     } catch (...) {
         free_workspace(&workspace);
         throw;
@@ -174,6 +177,7 @@ void free_workspace(DeviceWorkspace* workspace) {
     free_buffer(&workspace->embeddings);
     free_buffer(&workspace->hidden);
     free_buffer(&workspace->x);
+    free_buffer(&workspace->x_tmp);
     free_buffer(&workspace->x_mid);
     free_buffer(&workspace->x_norm2);
     free_buffer(&workspace->norm);
@@ -184,6 +188,8 @@ void free_workspace(DeviceWorkspace* workspace) {
     free_buffer(&workspace->mlp_hidden);
     free_buffer(&workspace->logits);
     free_buffer(&workspace->loss);
+    free_buffer(&workspace->fc2);
+
 }
 
 __global__ void embedding_lookup_kernel(
@@ -217,10 +223,10 @@ __global__ void embedding_lookup_kernel(
 __global__ void add_vec_kernel(
     const double* left,
     const double* right,
-    const double* output,
+    double* output,
     const int n
 ) {
-    int tid = blockDim.x * blockInx.x + threadIdx.x;
+    int tid = blockDim.x * blockIdx.x + threadIdx.x;
     if(tid >= n) return;
 
     output[tid] = left[tid] + right[tid];
@@ -285,6 +291,21 @@ __global__ void linear_kernel(
     }
 }
 
+
+
+__global__ void relu_kernel(
+    double* input,
+    int n
+) {
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (idx >= n) return; 
+
+    if (input[idx] >= 0) return; 
+
+    input[idx] = 0.0; 
+}
+
 __device__ void softmax(double* logits, int n) {
     double max_val = logits[0];
     for (int i = 1; i < n; ++i) {
@@ -303,15 +324,7 @@ __device__ void softmax(double* logits, int n) {
     }
 }
 
-__global__ add_vectors(double* left, double* right, int size) {
-    // Pure elementwise vector add:
-    // output[i] = left[i] + right[i]
-    double output[size];
-    for (std::size_t idx = 0; idx < size; ++idx) {
-        output[idx] = left[idx] + right[idx];
-    }
-    return output;
-}
+
 
 __global__ void self_attn_kernel(
     double* q,
@@ -492,6 +505,45 @@ void launch_self_attn(
 }
 
 
+void launch_vec_add(
+    const double* left,
+    const double* right,
+    double* output,
+    const int n, 
+    int batch_size,
+    int usable_seq_len
+) {
+    const auto launch = make_1d_launch(
+        static_cast<std::size_t>(batch_size) *
+        static_cast<std::size_t>(usable_seq_len)
+    );
+
+    add_vec_kernel<<<launch.blocks, launch.threads>>>(
+        left,
+        right, 
+        output, 
+        n
+    );
+
+    cuda_check(cudaGetLastError(), "launching self_attn_kernel");
+}
+
+
+void launch_relu(
+    double* input, 
+    int size, 
+) {
+    const auto launch = make_1d_launch(
+        size
+    );
+
+    relu_kernel<<<launch.blocks, launch.threads>>>(
+        input, 
+        size
+    );
+
+    cuda_check(cudaGetLastError(), "launching self_attn_kernel");
+}
 
 void launch_transformer(const DeviceModel& device_model, DeviceWorkspace* workspace, const ModelConfig& config, const BatchTokens& batch) {
     /*
@@ -535,15 +587,17 @@ void launch_transformer(const DeviceModel& device_model, DeviceWorkspace* worksp
         launch_linear(workspace->norm.ptr, k_layer, device_model.attn_wk[layer_idx].ptr, config.n_embd, config.n_embd, batch.batch_size, usable_seq_len);
         launch_linear(workspace->norm.ptr, v_layer, device_model.attn_wv[layer_idx].ptr, config.n_embd, config.n_embd, batch.batch_size, usable_seq_len);
         launch_self_attn(workspace->q.ptr, k_layer, v_layer, config.n_head, workspace->attn_out.ptr, batch.batch_size, usable_seq_len, config.head_dim(), config.n_embd); 
-        launch_linear(workspace->attn_out.ptr, workspace->attn_out.ptr, device_model.attn_wo[layer_idx].ptr, config.n_embd, config.n_embd, batch.batch_size, usable_seq_len);
-
-
-
+        
+        launch_linear(workspace->attn_out.ptr, workspace->x_tmp.ptr, device_model.attn_wo[layer_idx].ptr, config.n_embd, config.n_embd, batch.batch_size, usable_seq_len);
+        launch_vec_add(workspace->x.ptr, workspace->x_tmp.ptr, workspace->x_mid.ptr, workspace->x_mid.count, batch.batch_size, usable_seq_len);
+        launch_rmsnorm(workspace->x_mid.ptr, workspace->x_norm2.ptr, config.n_embd, batch.batch_size, usable_seq_len);
+        
+        //* MLP Perceptron 
+        launch_linear(workspace->x_norm2.ptr, workspace->mlp_hidden.ptr, device_model.mlp_fc1[layer_idx].ptr, config.n_embd, config.mlp_dim(), batch.batch_size, usable_seq_len);
+        launch_relu(workspace->mlp_hidden.ptr, workspace->mlp_hidden.count); 
+        launch_linear(workspace->mlp_hidden.ptr, workspace->fc2.ptr, device_model.mlp_fc2[layer_idx].ptr, config.mlp_dim(), config.n_embd, batch.batch_size, usable_seq_len);
+        launch_vec_add(workspace->x_mid.ptr, workspace->fc2.ptr, workspace->x.ptr, workspace->x.count, batch.batch_size, usable_seq_len);
     }
-    
-    (void)workspace;
-    (void)config;
-    (void)batch;
 }
 
 void launch_logits_and_loss_outline(const DeviceModel& device_model, DeviceWorkspace* workspace, const ModelConfig& config, const BatchTokens& batch) {

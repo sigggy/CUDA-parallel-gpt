@@ -243,8 +243,37 @@ __global__ void rmsnorm_kernel(
 }
 
 
-__global__ void linear(
+__global__ void linear_kernel(
     const double* input,
+    double* output,
+    const double* weights,
+    int in_dim,
+    int out_dim,
+    int num_batches,
+    int usable_seq_len
+) {
+    int total_tokens = num_batches * usable_seq_len;
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (idx >= total_tokens) return;
+
+    int input_start = idx * in_dim;
+    int output_start = idx * out_dim;
+
+    for (int out = 0; out < out_dim; ++out) {
+        double sum = 0.0;
+
+        for (int in = 0; in < in_dim; ++in) {
+            sum += weights[out * in_dim + in] * input[input_start + in];
+        }
+
+        output[output_start + out] = sum;
+    }
+}
+
+
+__global__ void self_attn_kernel(
+    double* q,
     double* output,
     const double* weights,
     int in_dim,
@@ -342,6 +371,34 @@ void launch_rmsnorm(
 }
 
 
+void launch_linear(
+    const double* input,
+    double* output,
+    const double* weights, 
+    int in_dim, 
+    int out_dim, 
+    int batch_size,
+    int usable_seq_len
+) {
+    const auto launch = make_1d_launch(
+        static_cast<std::size_t>(batch_size) *
+        static_cast<std::size_t>(usable_seq_len)
+    );
+
+    linear_kernel<<<launch.blocks, launch.threads>>>(
+        input,
+        output,
+        weights,
+        in_dim, 
+        out_dim,
+        usable_seq_len,
+        batch_size
+    );
+
+    cuda_check(cudaGetLastError(), "launching rmsnorm_kernel");
+}
+
+
 
 void launch_transformer(const DeviceModel& device_model, DeviceWorkspace* workspace, const ModelConfig& config, const BatchTokens& batch) {
     /*
@@ -376,6 +433,14 @@ void launch_transformer(const DeviceModel& device_model, DeviceWorkspace* worksp
 
     for (int layer_idx = 0; layer_idx < config.n_layer; ++layer_idx) {
         launch_rmsnorm(workspace->x.ptr, workspace->norm.ptr, config.n_embd, batch.batch_size, usable_seq_len);
+        launch_linear(workspace->norm.ptr, workspace->q.ptr, device_model.attn_wq[layer_idx].ptr, config.n_embd, config.n_embd, batch.batch_size, usable_seq_len);
+        
+        //* Find the layer in the cache 
+        double* k_layer = workspace->k_cache.ptr + layer_idx * batch.batch_size * usable_seq_len * config.n_embd;
+        double* v_layer = workspace->v_cache.ptr + layer_idx * batch.batch_size * usable_seq_len * config.n_embd;
+        
+        launch_linear(workspace->norm.ptr, k_layer, device_model.attn_wk[layer_idx].ptr, config.n_embd, config.n_embd, batch.batch_size, usable_seq_len);
+        launch_linear(workspace->norm.ptr, v_layer, device_model.attn_wv[layer_idx].ptr, config.n_embd, config.n_embd, batch.batch_size, usable_seq_len);
 
 
 

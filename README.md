@@ -144,7 +144,7 @@ Optional presets:
 - `model-very-large-1k`
 - `model-extra-large-1k`
 
-`small` through `extra-large` increase both model size and number of names, up to 10k names. The `names-*` presets keep the model small-to-medium while increasing the number of names, up to 30k names. The `model-*-1k` presets keep names fixed around 1k while increasing all model-size dimensions. The pure scalar `serial_python` method is only run on `small` by the benchmark drivers.
+`small` through `extra-large` increase both model size and number of names, up to 10k names. The `names-*` presets keep the model small-to-medium while increasing the number of names, up to 30k names. The `model-*-1k` presets keep names fixed around 1k while increasing all model-size dimensions. The pure scalar `serial_python` method is only run on `small` and `medium` by the benchmark drivers.
 
 Override how many names are processed if needed:
 
@@ -177,7 +177,7 @@ bash scripts/run_benchmarks.sh
 
 ### Run the Python benchmark driver
 
-The Python benchmark driver writes structured results to JSON as it goes and skips unavailable optional methods such as CUDA or PyTorch when their dependencies are missing.
+The Python benchmark driver writes structured results to JSON as it goes, writes an HTML report when the full sweep finishes, and skips unavailable optional methods such as CUDA or PyTorch when their dependencies are missing.
 
 ```bash
 python3 scripts/run_benchmarks.py
@@ -187,6 +187,12 @@ To choose the output path:
 
 ```bash
 python3 scripts/run_benchmarks.py benchmark_results.json
+```
+
+To choose both output paths:
+
+```bash
+python3 scripts/run_benchmarks.py benchmark_results.json --html-output benchmark_results.html
 ```
 
 ## Repo Layout

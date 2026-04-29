@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import argparse
+import html
 import json
 import importlib.util
 import shutil
@@ -36,7 +38,24 @@ PRESETS = (
 )
 DEFAULT_BATCH_SIZE = "32"
 METHOD_PRESETS = {
-    "serial_python": {"small"},
+    "serial_python": {"small", "medium"},
+}
+PRESET_DETAILS = {
+    "small": {"n_layer": 1, "n_embd": 64, "block_size": 64, "n_head": 4, "steps": 200},
+    "medium": {"n_layer": 2, "n_embd": 128, "block_size": 64, "n_head": 8, "steps": 1000},
+    "large": {"n_layer": 4, "n_embd": 256, "block_size": 128, "n_head": 8, "steps": 2500},
+    "very-large": {"n_layer": 6, "n_embd": 384, "block_size": 128, "n_head": 12, "steps": 5000},
+    "extra-large": {"n_layer": 8, "n_embd": 512, "block_size": 256, "n_head": 16, "steps": 10000},
+    "names-1k": {"n_layer": 1, "n_embd": 64, "block_size": 64, "n_head": 4, "steps": 1000},
+    "names-5k": {"n_layer": 1, "n_embd": 64, "block_size": 64, "n_head": 4, "steps": 5000},
+    "names-10k": {"n_layer": 1, "n_embd": 64, "block_size": 64, "n_head": 4, "steps": 10000},
+    "names-20k": {"n_layer": 2, "n_embd": 128, "block_size": 64, "n_head": 8, "steps": 20000},
+    "names-30k": {"n_layer": 2, "n_embd": 128, "block_size": 64, "n_head": 8, "steps": 30000},
+    "model-small-1k": {"n_layer": 1, "n_embd": 64, "block_size": 64, "n_head": 4, "steps": 1000},
+    "model-medium-1k": {"n_layer": 2, "n_embd": 128, "block_size": 64, "n_head": 8, "steps": 1000},
+    "model-large-1k": {"n_layer": 4, "n_embd": 256, "block_size": 128, "n_head": 8, "steps": 1000},
+    "model-very-large-1k": {"n_layer": 6, "n_embd": 384, "block_size": 128, "n_head": 12, "steps": 1000},
+    "model-extra-large-1k": {"n_layer": 8, "n_embd": 512, "block_size": 256, "n_head": 16, "steps": 1000},
 }
 
 
@@ -79,6 +98,241 @@ def parse_key_value_line(text: str) -> dict[str, str]:
 
 def write_results(output_path: Path, results: dict[str, object]) -> None:
     output_path.write_text(json.dumps(results, indent=2) + "\n")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="run all validation and benchmark methods")
+    parser.add_argument(
+        "output",
+        nargs="?",
+        type=Path,
+        default=DEFAULT_OUTPUT,
+        help="JSON output path, written incrementally while benchmarks run",
+    )
+    parser.add_argument(
+        "--html-output",
+        type=Path,
+        default=None,
+        help="HTML report path, written after the full benchmark sweep finishes",
+    )
+    return parser.parse_args()
+
+
+def html_escape(value: object) -> str:
+    return html.escape(str(value), quote=True)
+
+
+def parse_float(value: object) -> float | None:
+    try:
+        return float(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def format_decimal(value: object, digits: int) -> str:
+    parsed = parse_float(value)
+    if parsed is None:
+        return "&mdash;"
+    return f"{parsed:.{digits}f}"
+
+
+def format_text(value: object) -> str:
+    if value is None:
+        return "&mdash;"
+    return html_escape(value)
+
+
+def format_speedup(baseline_seconds: float | None, current_seconds: object) -> str:
+    current = parse_float(current_seconds)
+    if baseline_seconds is None or current is None or current == 0.0:
+        return "&mdash;"
+    return f"{baseline_seconds / current:.2f}&times;"
+
+
+def benchmark_lookup(results: dict[str, object]) -> dict[tuple[str, str], dict[str, object]]:
+    entries = results.get("benchmarks", [])
+    lookup: dict[tuple[str, str], dict[str, object]] = {}
+    if not isinstance(entries, list):
+        return lookup
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        method = entry.get("method")
+        preset = entry.get("preset")
+        if isinstance(method, str) and isinstance(preset, str):
+            lookup[(preset, method)] = entry
+    return lookup
+
+
+def baseline_seconds(
+    lookup: dict[tuple[str, str], dict[str, object]], preset: str, method: str
+) -> float | None:
+    entry = lookup.get((preset, method))
+    if entry is None or entry.get("status") != "pass":
+        return None
+    parsed = entry.get("parsed")
+    if not isinstance(parsed, dict):
+        return None
+    return parse_float(parsed.get("total_program_seconds"))
+
+
+def render_preset_info() -> str:
+    rows = []
+    for preset in PRESETS:
+        details = PRESET_DETAILS[preset]
+        rows.append(
+            "<tr>"
+            f"<td>{html_escape(preset)}</td>"
+            f"<td>{details['n_layer']}</td>"
+            f"<td>{details['n_embd']}</td>"
+            f"<td>{details['block_size']}</td>"
+            f"<td>{details['n_head']}</td>"
+            f"<td>{details['steps']}</td>"
+            "</tr>"
+        )
+    return "\n".join(rows)
+
+
+def render_benchmark_rows(results: dict[str, object]) -> str:
+    lookup = benchmark_lookup(results)
+    rows = []
+    for preset in PRESETS:
+        rows.append(
+            "<tr class=\"preset-row\">"
+            f"<th colspan=\"9\">preset: {html_escape(preset)}</th>"
+            "</tr>"
+        )
+        serial_cpp_seconds = baseline_seconds(lookup, preset, "serial_cpp")
+        serial_python_seconds = baseline_seconds(lookup, preset, "serial_python")
+        for method in METHODS:
+            entry = lookup.get((preset, method))
+            if entry is None:
+                rows.append(
+                    "<tr>"
+                    f"<td>{html_escape(method)}</td>"
+                    f"<td>{html_escape(preset)}</td>"
+                    "<td>missing</td>"
+                    "<td>&mdash;</td>"
+                    "<td>&mdash;</td>"
+                    "<td>&mdash;</td>"
+                    "<td>&mdash;</td>"
+                    "<td>&mdash;</td>"
+                    "<td>&mdash;</td>"
+                    "</tr>"
+                )
+                continue
+
+            parsed = entry.get("parsed")
+            if not isinstance(parsed, dict):
+                parsed = {}
+            status = entry.get("status", "unknown")
+            total_seconds = parsed.get("total_program_seconds")
+            rows.append(
+                "<tr>"
+                f"<td>{html_escape(method)}</td>"
+                f"<td>{html_escape(preset)}</td>"
+                f"<td>{html_escape(status)}</td>"
+                f"<td>{format_text(parsed.get('steps'))}</td>"
+                f"<td>{format_decimal(parsed.get('loss'), 4)}</td>"
+                f"<td>{format_decimal(parsed.get('forward_pass_seconds_cumulative'), 4)}</td>"
+                f"<td>{format_decimal(total_seconds, 4)}</td>"
+                f"<td>{format_speedup(serial_cpp_seconds, total_seconds)}</td>"
+                f"<td>{format_speedup(serial_python_seconds, total_seconds)}</td>"
+                "</tr>"
+            )
+    return "\n".join(rows)
+
+
+def write_html_report(output_path: Path, results: dict[str, object]) -> None:
+    document = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Benchmark Results</title>
+  <style>
+    body {{
+      color: #1f2933;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.4;
+      margin: 24px;
+    }}
+    h1, h2 {{
+      margin: 0 0 12px;
+    }}
+    h2 {{
+      margin-top: 28px;
+    }}
+    table {{
+      border-collapse: collapse;
+      margin-bottom: 24px;
+      width: 100%;
+    }}
+    th, td {{
+      border: 1px solid #d6dde6;
+      padding: 7px 9px;
+      text-align: left;
+      white-space: nowrap;
+    }}
+    th {{
+      background: #eef2f7;
+      font-weight: 600;
+    }}
+    .preset-row th {{
+      background: #dbeafe;
+      color: #102a43;
+      font-size: 1rem;
+    }}
+    .meta {{
+      color: #52616b;
+      margin: 0 0 18px;
+    }}
+  </style>
+</head>
+<body>
+  <h1>Benchmark Results</h1>
+  <p class="meta">Dataset: {html_escape(results.get("dataset", ""))}<br>Default batch size: {DEFAULT_BATCH_SIZE}</p>
+
+  <h2>Preset Info</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Preset</th>
+        <th>n_layer</th>
+        <th>n_embd</th>
+        <th>block_size</th>
+        <th>n_head</th>
+        <th>steps</th>
+      </tr>
+    </thead>
+    <tbody>
+{render_preset_info()}
+    </tbody>
+  </table>
+
+  <h2>Results</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Method</th>
+        <th>Preset</th>
+        <th>Status</th>
+        <th>Steps</th>
+        <th>Loss</th>
+        <th>Fwd pass (s)</th>
+        <th>Total (s)</th>
+        <th>vs serial_cpp</th>
+        <th>vs serial_python</th>
+      </tr>
+    </thead>
+    <tbody>
+{render_benchmark_rows(results)}
+    </tbody>
+  </table>
+</body>
+</html>
+"""
+    output_path.write_text(document)
 
 
 def run_validate_method(method: str) -> CommandResult:
@@ -188,11 +442,16 @@ def run_benchmark_method(method: str, preset: str) -> CommandResult:
 
 
 def main() -> int:
-    output_path = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else DEFAULT_OUTPUT
+    args = parse_args()
+    output_path = args.output.resolve()
+    html_output_path = (
+        args.html_output.resolve() if args.html_output is not None else output_path.with_suffix(".html")
+    )
 
     results: dict[str, object] = {
         "dataset": str(DATASET),
         "fixture_dir": str(FIXTURE_DIR),
+        "presets": PRESET_DETAILS,
         "build": {},
         "validate": {},
         "benchmarks": [],
@@ -268,6 +527,7 @@ def main() -> int:
                     {
                         "method": method,
                         "preset": preset,
+                        "preset_details": PRESET_DETAILS[preset],
                         "status": "skipped",
                         "reason": "preset disabled for method",
                     }
@@ -281,6 +541,7 @@ def main() -> int:
                     {
                         "method": method,
                         "preset": preset,
+                        "preset_details": PRESET_DETAILS[preset],
                         "status": "skipped",
                     }
                 )
@@ -294,6 +555,7 @@ def main() -> int:
             benchmark_entry = {
                 "method": method,
                 "preset": preset,
+                "preset_details": PRESET_DETAILS[preset],
                 "status": "pass" if benchmark_result.returncode == 0 else "fail",
                 "returncode": benchmark_result.returncode,
                 "stdout": benchmark_result.stdout,
@@ -308,7 +570,9 @@ def main() -> int:
             write_results(output_path, results)
 
     write_results(output_path, results)
+    write_html_report(html_output_path, results)
     print(f"wrote benchmark results to {output_path}")
+    print(f"wrote benchmark report to {html_output_path}")
     return 0
 
 

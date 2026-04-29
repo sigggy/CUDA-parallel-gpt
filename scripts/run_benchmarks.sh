@@ -207,7 +207,7 @@ done
 for preset in small medium large very-large extra-large names-1k names-5k names-10k names-20k names-30k model-small-1k model-medium-1k model-large-1k model-very-large-1k model-extra-large-1k; do
     printf "\nPreset: %s\n" "$preset"
     for method in serial_cpp serial_python serial_torch parallel_torch parallel_cpp; do
-        if [ "$method" = "serial_python" ] && [ "$preset" != "small" ]; then
+        if [ "$method" = "serial_python" ] && [ "$preset" != "small" ] && [ "$preset" != "medium" ]; then
             printf "%s: skipped for preset=%s\n" "$method" "$preset"
             continue
         fi

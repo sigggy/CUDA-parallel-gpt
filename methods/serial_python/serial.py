@@ -21,6 +21,7 @@ DEFAULT_SEED = 42
 VALIDATION_EPSILON = 1e-4
 BENCHMARK_PRESETS = {
     "small": {"config": ModelConfig(n_layer=1, n_embd=64, block_size=64, n_head=4), "steps": 200},
+    "medium": {"config": ModelConfig(n_layer=2, n_embd=128, block_size=64, n_head=8), "steps": 1000},
 }
 
 

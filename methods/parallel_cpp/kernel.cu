@@ -138,6 +138,16 @@ void free_model(DeviceModel* device_model) {
     device_model->mlp_fc2.clear();
 }
 
+double* add_vectors(double* left, double* right, int size) {
+    // Pure elementwise vector add:
+    // output[i] = left[i] + right[i]
+    double output[size];
+    for (std::size_t idx = 0; idx < size; ++idx) {
+        output[idx] = left[idx] + right[idx];
+    }
+    return output;
+}
+
 DeviceWorkspace allocate_workspace(const ModelConfig& config, const BatchTokens& batch, int usable_seq_len) {
     DeviceWorkspace workspace;
     const std::size_t sequence_count = static_cast<std::size_t>(batch.batch_size);
@@ -271,7 +281,7 @@ __global__ void linear_kernel(
     }
 }
 
-__device__ void softmax(double* &logits, int n) {
+__device__ void softmax(double* logits, int n) {
     double max_val = logits[0];
     for (int i = 1; i < n; ++i) {
         if (x[i] > max_val) {
@@ -296,12 +306,12 @@ __global__ void self_attn_kernel(
     double* v_layer, 
     int n_head, 
     double* attn_out, 
-    int num_batches,
+    int batch_size,
     int usable_seq_len, 
     int head_dim, 
     int n_embd
 ) {
-    int total_tokens = num_batches * usable_seq_len;
+    int total_tokens = batch_size * usable_seq_len;
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
     
     int token_pos = idx % usable_seq_len; 
@@ -314,12 +324,9 @@ __global__ void self_attn_kernel(
     double* q_token = q + sequence_start + (token_pos * n_embd);  
 
 
-
-
-
     for (int head = 0; head < n_head; ++head) {
         const int head_start = head * head_dim;
-        double attn_logits[100]; 
+        double attn_logits[100]; //TODO fix 
         for (int t = 0; t <= token_pos; ++t) {
             double* k_layer_start = k_layer + sequence_start + (t * n_embd);  
             double dot = 0.0;
@@ -329,10 +336,10 @@ __global__ void self_attn_kernel(
             attn_logits[t] = dot / std::sqrt(static_cast<double>(head_dim));
         }
 
-        const std::vector<double> attn_weights = softmax(attn_logits);
+        softmax(attn_logits, token_pos); 
         for (int t = 0; t <= token_pos; ++t) {
             double* v_layer_start = v_layer + sequence_start + (t * n_embd);  
-            const double weight = attn_weights[t];
+            const double weight = attn_logits[t];
             for (int j = 0; j < head_dim; ++j) {
                 attn_out[head_start + j] += weight * v_layer_start[head_start + j];
             }
@@ -436,7 +443,39 @@ void launch_linear(
         batch_size
     );
 
-    cuda_check(cudaGetLastError(), "launching rmsnorm_kernel");
+    cuda_check(cudaGetLastError(), "launching linear_kernel");
+}
+
+
+void launch_self_attn(
+    double* q,
+    double* k_layer,
+    double* v_layer, 
+    int n_head, 
+    double* attn_out, 
+    int usable_seq_len, 
+    int head_dim, 
+    int n_embd, 
+    int batch_size
+) {
+    const auto launch = make_1d_launch(
+        static_cast<std::size_t>(batch_size) *
+        static_cast<std::size_t>(usable_seq_len)
+    );
+
+    self_attn_kernel<<<launch.blocks, launch.threads>>>(
+        q,
+        k_layer,
+        v_layer, 
+        n_head, 
+        attn_out, 
+        batch_size,
+        usable_seq_len, 
+        head_dim, 
+        n_embd
+    );
+
+    cuda_check(cudaGetLastError(), "launching self_attn_kernel");
 }
 
 
@@ -482,6 +521,8 @@ void launch_transformer(const DeviceModel& device_model, DeviceWorkspace* worksp
         
         launch_linear(workspace->norm.ptr, k_layer, device_model.attn_wk[layer_idx].ptr, config.n_embd, config.n_embd, batch.batch_size, usable_seq_len);
         launch_linear(workspace->norm.ptr, v_layer, device_model.attn_wv[layer_idx].ptr, config.n_embd, config.n_embd, batch.batch_size, usable_seq_len);
+        launch_self_attn(workspace->q.ptr, k_layer, v_layer, config.n_head, workspace->attn_out.ptr, batch.batch_size, usable_seq_len, config.head_dim(), config.n_embd); 
+        launch_linear(workspace->attn_out.ptr, workspace->attn_out.ptr, device_model.attn_wo[layer_idx].ptr, config.n_embd, config.n_embd, batch.batch_size, usable_seq_len);
 
 
 

@@ -274,7 +274,7 @@ __global__ void linear_kernel(
 
 __global__ void self_attn_kernel(
     double* q,
-    double* output,
+    double* k_a,
     const double* weights,
     int in_dim,
     int out_dim,

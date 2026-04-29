@@ -272,23 +272,21 @@ __global__ void linear_kernel(
 }
 
 __device__ void softmax(double* &logits, int n) {
-    // Convert arbitrary logits into a probability distribution.
-    //
-    // Math:
-    // probs[i] = exp(logits[i]) / sum_j exp(logits[j])
-    //
-    // We subtract max_logit first for numerical stability so exp() does not overflow.
-    const double max_logit = *std::max_element(logits.begin(), logits.end());
-    std::vector<double> probs(logits.size(), 0.0);
-    double exp_sum = 0.0;
-    for (std::size_t idx = 0; idx < logits.size(); ++idx) {
-        probs[idx] = std::exp(logits[idx] - max_logit);
-        exp_sum += probs[idx];
+    double max_val = logits[0];
+    for (int i = 1; i < n; ++i) {
+        if (x[i] > max_val) {
+            max_val = logits[i];
+        }
     }
-    for (double& prob : probs) {
-        prob /= exp_sum;
+    double sum = 0.0;
+    for (int i = 0; i < n; ++i) {
+        logits[i] = exp(logits[i] - max_val);
+        sum += logits[i];
     }
-    return probs;
+    double inv_sum = 1.0 / sum;
+    for (int i = 0; i < n; ++i) {
+        logits[i] *= inv_sum;
+    }
 }
 
 

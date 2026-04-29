@@ -138,16 +138,6 @@ void free_model(DeviceModel* device_model) {
     device_model->mlp_fc2.clear();
 }
 
-double* add_vectors(double* left, double* right, int size) {
-    // Pure elementwise vector add:
-    // output[i] = left[i] + right[i]
-    double output[size];
-    for (std::size_t idx = 0; idx < size; ++idx) {
-        output[idx] = left[idx] + right[idx];
-    }
-    return output;
-}
-
 DeviceWorkspace allocate_workspace(const ModelConfig& config, const BatchTokens& batch, int usable_seq_len) {
     DeviceWorkspace workspace;
     const std::size_t sequence_count = static_cast<std::size_t>(batch.batch_size);
@@ -162,7 +152,8 @@ DeviceWorkspace allocate_workspace(const ModelConfig& config, const BatchTokens&
         allocate_buffer(&workspace.embeddings, hidden_count, true);
         allocate_buffer(&workspace.hidden, hidden_count, true);
         allocate_buffer(&workspace.x, hidden_count, true);
-        allocate_buffer(&workspace.x_tmp, hidden_count, true);
+        allocate_buffer(&workspace.x_mid, hidden_count, true);
+        allocate_buffer(&workspace.x_norm2, hidden_count, true);
         allocate_buffer(&workspace.norm, hidden_count, true);
         allocate_buffer(&workspace.q, hidden_count, true);
         allocate_buffer(&workspace.k_cache, kv_cache_count, true);
@@ -183,7 +174,8 @@ void free_workspace(DeviceWorkspace* workspace) {
     free_buffer(&workspace->embeddings);
     free_buffer(&workspace->hidden);
     free_buffer(&workspace->x);
-    free_buffer(&workspace->x_tmp);
+    free_buffer(&workspace->x_mid);
+    free_buffer(&workspace->x_norm2);
     free_buffer(&workspace->norm);
     free_buffer(&workspace->q);
     free_buffer(&workspace->k_cache);
@@ -220,6 +212,18 @@ __global__ void embedding_lookup_kernel(
     const double token_val = wte[token_id * n_embd + col];
     const double pos_val = wpe[pos * n_embd + col];
     embeddings[idx] = token_val + pos_val;
+}
+
+__global__ void add_vec_kernel(
+    const double* left,
+    const double* right,
+    const double* output,
+    const int n
+) {
+    int tid = blockDim.x * blockInx.x + threadIdx.x;
+    if(tid >= n) return;
+
+    output[tid] = left[tid] + right[tid];
 }
 
 __global__ void rmsnorm_kernel(
@@ -299,6 +303,15 @@ __device__ void softmax(double* logits, int n) {
     }
 }
 
+__global__ add_vectors(double* left, double* right, int size) {
+    // Pure elementwise vector add:
+    // output[i] = left[i] + right[i]
+    double output[size];
+    for (std::size_t idx = 0; idx < size; ++idx) {
+        output[idx] = left[idx] + right[idx];
+    }
+    return output;
+}
 
 __global__ void self_attn_kernel(
     double* q,

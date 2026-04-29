@@ -97,7 +97,7 @@ struct KernelLaunch {
   int blocks = 1;
 };
 
-inline int outline_usable_seq_len(const ModelConfig &config,
+inline int compute_usable_seq_len(const ModelConfig &config,
                                   const BatchTokens &batch) {
   return std::min(config.block_size, batch.batch_seq_length - 1);
 }

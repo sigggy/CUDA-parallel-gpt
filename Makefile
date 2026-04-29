@@ -10,7 +10,7 @@ PROFILE_CXXFLAGS := -std=c++17 -O2 -g -fno-omit-frame-pointer -fno-inline-functi
 
 
 NVCC ?= nvcc
-NVCCFLAGS ?= -std=c++17 -O3 -Xcompiler -Wall,-Wextra,-pedantic
+NVCCFLAGS ?= -std=c++14 -O3 -Xcompiler -Wall,-Wextra,-pedantic
 
 BUILD_DIR := build
 DATASET := training_data/datasets/names.txt

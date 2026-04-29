@@ -48,7 +48,7 @@ Parallel C++:
 build/parallel_cpp --mode validate --fixture-dir training_data/fixtures/small_case
 ```
 
-Note: `parallel_cpp` is an outline scaffold and requires a CUDA build. Validation will fail until you implement the CUDA compute path in `methods/parallel_cpp/kernel.cu`.
+Note: `parallel_cpp` requires a CUDA build and `nvcc` on `PATH`.
 
 ### Benchmark a single method
 
@@ -79,7 +79,7 @@ build/parallel_cpp \
   --preset small
 ```
 
-Note: this binary currently demonstrates the host-side path and CUDA launch outline only. It will not produce a valid benchmark result until the compute kernels are implemented.
+Note: `parallel_cpp` currently runs the same forward-only batch-of-one benchmark flow through the CUDA path.
 
 Optional presets:
 
@@ -112,7 +112,7 @@ bash scripts/run_benchmarks.sh
 - `methods/serial_cpp/kernel.cpp`: Serial C++ forward kernel.
 - `methods/serial_cpp/utils.cpp`: Serial C++ model setup and serialization helpers kept separate from kernel math.
 - `methods/serial_cpp/main.cpp`: Serial C++ runner.
-- `methods/parallel_cpp/kernel.cu`: CUDA-target translation unit showing how to allocate buffers and launch placeholder kernels.
+- `methods/parallel_cpp/kernel.cu`: CUDA-target translation unit with the forward-only batched compute path.
 - `methods/parallel_cpp/utils.cpp`: Parallel C++ model setup and serialization helpers kept separate from CUDA-specific code.
 - `methods/parallel_cpp/main.cpp`: Parallel method runner.
 - `training_data/datasets/names.txt`: dataset used for benchmarks.
@@ -141,6 +141,6 @@ The current methods are:
 
 - `serial_python`: correctness reference and optional timing reference
 - `serial_cpp`: CPU baseline
-- `parallel_cpp`: CUDA-target scaffold
+- `parallel_cpp`: CUDA-target forward implementation
 
-Right now `parallel_cpp` keeps a copied host-side flow similar to `serial_cpp` up to the point where actual forward computation begins. After that boundary, the parallel method switches to a CUDA outline. `parallel_cpp` now builds only from the `.cu` translation unit and requires `nvcc`. The CUDA path is intentionally incomplete: it shows buffer upload, workspace allocation, placeholder kernel definitions, and example launch sites without implementing the transformer math for you.
+Right now `parallel_cpp` keeps a copied host-side flow similar to `serial_cpp` up to the point where actual forward computation begins. After that boundary, the parallel method switches to CUDA kernels for embeddings, RMSNorm, linear projections, causal self-attention, ReLU, logits, and loss. It is forward-only, assumes fixed sequence lengths within a batch, does not implement padding, and builds only from the `.cu` translation unit with `nvcc`.

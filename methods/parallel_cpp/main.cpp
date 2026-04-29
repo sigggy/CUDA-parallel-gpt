@@ -2,8 +2,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
-#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -17,8 +17,8 @@ namespace {
 
 struct CliOptions {
     std::string mode;
-    std::filesystem::path fixture_dir;
-    std::filesystem::path dataset;
+    std::string fixture_dir;
+    std::string dataset;
     std::string sample_name = "anna";
     std::string preset = "small";
     int num_steps = -1;
@@ -42,6 +42,17 @@ BatchTokens make_batch_of_one(const std::vector<int>& tokens) {
     batch.batch_size = 1;
     batch.batch_seq_length = static_cast<int>(tokens.size());
     return batch;
+}
+
+std::string join_path(const std::string& dir, const std::string& filename) {
+    if (dir.empty()) {
+        return filename;
+    }
+    const char last = dir[dir.size() - 1];
+    if (last == '/' || last == '\\') {
+        return dir + filename;
+    }
+    return dir + "/" + filename;
 }
 
 std::string require_value(int argc, char** argv, int* index) {
@@ -80,10 +91,10 @@ CliOptions parse_cli(int argc, char** argv) {
     return options;
 }
 
-std::vector<std::string> load_docs(const std::filesystem::path& dataset_path) {
-    std::ifstream input(dataset_path);
+std::vector<std::string> load_docs(const std::string& dataset_path) {
+    std::ifstream input(dataset_path.c_str());
     if (!input) {
-        throw std::runtime_error("failed to open dataset: " + dataset_path.string());
+        throw std::runtime_error("failed to open dataset: " + dataset_path);
     }
     std::vector<std::string> docs;
     std::string line;
@@ -124,10 +135,10 @@ std::vector<int> encode_doc(const std::string& doc, const std::unordered_map<cha
     return tokens;
 }
 
-std::unordered_map<std::string, std::string> parse_manifest(const std::filesystem::path& manifest_path) {
-    std::ifstream input(manifest_path);
+std::unordered_map<std::string, std::string> parse_manifest(const std::string& manifest_path) {
+    std::ifstream input(manifest_path.c_str());
     if (!input) {
-        throw std::runtime_error("failed to open manifest: " + manifest_path.string());
+        throw std::runtime_error("failed to open manifest: " + manifest_path);
     }
     std::unordered_map<std::string, std::string> manifest;
     std::string line;
@@ -156,16 +167,16 @@ std::vector<int> parse_int_list(const std::string& text) {
     return values;
 }
 
-std::vector<float> read_f32_file(const std::filesystem::path& path) {
-    std::ifstream input(path, std::ios::binary);
+std::vector<float> read_f32_file(const std::string& path) {
+    std::ifstream input(path.c_str(), std::ios::binary);
     if (!input) {
-        throw std::runtime_error("failed to open binary file: " + path.string());
+        throw std::runtime_error("failed to open binary file: " + path);
     }
     input.seekg(0, std::ios::end);
     const std::streamsize file_size = input.tellg();
     input.seekg(0, std::ios::beg);
     if (file_size % static_cast<std::streamsize>(sizeof(float)) != 0) {
-        throw std::runtime_error("binary file is not float32-aligned: " + path.string());
+        throw std::runtime_error("binary file is not float32-aligned: " + path);
     }
     std::vector<float> values(static_cast<std::size_t>(file_size / static_cast<std::streamsize>(sizeof(float))));
     input.read(reinterpret_cast<char*>(values.data()), file_size);
@@ -201,7 +212,7 @@ int run_validate(const CliOptions& options) {
         throw std::runtime_error("--fixture-dir is required for validate mode");
     }
 
-    const std::filesystem::path manifest_path = options.fixture_dir / "manifest.txt";
+    const std::string manifest_path = join_path(options.fixture_dir, "manifest.txt");
     const auto manifest = parse_manifest(manifest_path);
     ModelConfig config;
     config.n_layer = std::stoi(manifest.at("n_layer"));
@@ -214,14 +225,14 @@ int run_validate(const CliOptions& options) {
     const double epsilon = std::stod(manifest.at("validation_epsilon"));
 
     Model host_model = make_empty_model(config);
-    load_model_from_f32(host_model, read_f32_file(options.fixture_dir / manifest.at("weights_init_file")));
+    load_model_from_f32(host_model, read_f32_file(join_path(options.fixture_dir, manifest.at("weights_init_file"))));
     DeviceModel device_model = upload_model_to_device(host_model);
     const BatchTokens batch = make_batch_of_one(tokens);
     try {
         const KernelResult result = run_forward_batched(device_model, batch);
 
-        compare_arrays("logits", result.logits, read_f32_file(options.fixture_dir / manifest.at("expected_logits_file")), epsilon);
-        compare_arrays("loss", {result.loss}, read_f32_file(options.fixture_dir / manifest.at("expected_loss_file")), epsilon);
+        compare_arrays("logits", result.logits, read_f32_file(join_path(options.fixture_dir, manifest.at("expected_logits_file"))), epsilon);
+        compare_arrays("loss", {result.loss}, read_f32_file(join_path(options.fixture_dir, manifest.at("expected_loss_file"))), epsilon);
         std::cout << "validation=pass\n";
     } catch (...) {
         free_device_model(&device_model);
@@ -245,7 +256,9 @@ int run_benchmark(const CliOptions& options) {
     if (docs.empty()) {
         throw std::runtime_error("dataset is empty");
     }
-    const auto [uchars, vocab] = build_vocab(docs);
+    const std::pair<std::string, std::unordered_map<char, int>> vocab_result = build_vocab(docs);
+    const std::string& uchars = vocab_result.first;
+    const std::unordered_map<char, int>& vocab = vocab_result.second;
     BenchmarkPreset preset = preset_it->second;
     preset.config.vocab_size = static_cast<int>(uchars.size()) + 1;
     const int requested_steps = options.num_steps >= 0 ? options.num_steps : preset.steps;

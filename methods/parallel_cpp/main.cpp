@@ -2,8 +2,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
-#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -17,17 +17,24 @@ namespace {
 
 struct CliOptions {
     std::string mode;
-    std::filesystem::path fixture_dir;
-    std::filesystem::path dataset;
+    std::string fixture_dir;
+    std::string dataset;
     std::string sample_name = "anna";
     std::string preset = "small";
     int num_steps = -1;
+    int batch_size = 1;
     std::uint32_t seed = 42;
 };
 
 struct BenchmarkPreset {
     ModelConfig config;
     int steps = 0;
+};
+
+struct BatchBucket {
+    int seq_length = 0;
+    int sequence_count = 0;
+    std::vector<int> tokens;
 };
 
 const std::unordered_map<std::string, BenchmarkPreset> kBenchmarkPresets = {
@@ -42,6 +49,26 @@ BatchTokens make_batch_of_one(const std::vector<int>& tokens) {
     batch.batch_size = 1;
     batch.batch_seq_length = static_cast<int>(tokens.size());
     return batch;
+}
+
+BatchTokens make_batch_from_bucket(BatchBucket* bucket) {
+    BatchTokens batch;
+    batch.tokens.swap(bucket->tokens);
+    batch.batch_size = bucket->sequence_count;
+    batch.batch_seq_length = bucket->seq_length;
+    bucket->sequence_count = 0;
+    return batch;
+}
+
+std::string join_path(const std::string& dir, const std::string& filename) {
+    if (dir.empty()) {
+        return filename;
+    }
+    const char last = dir[dir.size() - 1];
+    if (last == '/' || last == '\\') {
+        return dir + filename;
+    }
+    return dir + "/" + filename;
 }
 
 std::string require_value(int argc, char** argv, int* index) {
@@ -68,6 +95,8 @@ CliOptions parse_cli(int argc, char** argv) {
             options.preset = require_value(argc, argv, &idx);
         } else if (arg == "--num-steps") {
             options.num_steps = std::stoi(require_value(argc, argv, &idx));
+        } else if (arg == "--batch-size") {
+            options.batch_size = std::stoi(require_value(argc, argv, &idx));
         } else if (arg == "--seed") {
             options.seed = static_cast<std::uint32_t>(std::stoul(require_value(argc, argv, &idx)));
         } else {
@@ -77,13 +106,16 @@ CliOptions parse_cli(int argc, char** argv) {
     if (options.mode.empty()) {
         throw std::runtime_error("--mode is required");
     }
+    if (options.batch_size < 1) {
+        throw std::runtime_error("--batch-size must be at least 1");
+    }
     return options;
 }
 
-std::vector<std::string> load_docs(const std::filesystem::path& dataset_path) {
-    std::ifstream input(dataset_path);
+std::vector<std::string> load_docs(const std::string& dataset_path) {
+    std::ifstream input(dataset_path.c_str());
     if (!input) {
-        throw std::runtime_error("failed to open dataset: " + dataset_path.string());
+        throw std::runtime_error("failed to open dataset: " + dataset_path);
     }
     std::vector<std::string> docs;
     std::string line;
@@ -124,10 +156,49 @@ std::vector<int> encode_doc(const std::string& doc, const std::unordered_map<cha
     return tokens;
 }
 
-std::unordered_map<std::string, std::string> parse_manifest(const std::filesystem::path& manifest_path) {
-    std::ifstream input(manifest_path);
+std::vector<BatchTokens> build_length_bucketed_batches(
+    const std::vector<std::string>& docs,
+    int doc_count,
+    const std::unordered_map<char, int>& vocab,
+    int bos_token_id,
+    int max_batch_size
+) {
+    std::vector<BatchTokens> batches;
+    std::unordered_map<int, BatchBucket> buckets;
+    std::vector<int> length_order;
+
+    for (int doc_idx = 0; doc_idx < doc_count; ++doc_idx) {
+        const std::vector<int> tokens = encode_doc(docs[doc_idx], vocab, bos_token_id);
+        const int seq_length = static_cast<int>(tokens.size());
+        BatchBucket& bucket = buckets[seq_length];
+        if (bucket.seq_length == 0) {
+            bucket.seq_length = seq_length;
+            bucket.tokens.reserve(static_cast<std::size_t>(max_batch_size) * static_cast<std::size_t>(seq_length));
+            length_order.push_back(seq_length);
+        }
+
+        bucket.tokens.insert(bucket.tokens.end(), tokens.begin(), tokens.end());
+        ++bucket.sequence_count;
+        if (bucket.sequence_count == max_batch_size) {
+            batches.push_back(make_batch_from_bucket(&bucket));
+            bucket.tokens.reserve(static_cast<std::size_t>(max_batch_size) * static_cast<std::size_t>(seq_length));
+        }
+    }
+
+    for (int seq_length : length_order) {
+        BatchBucket& bucket = buckets[seq_length];
+        if (bucket.sequence_count > 0) {
+            batches.push_back(make_batch_from_bucket(&bucket));
+        }
+    }
+
+    return batches;
+}
+
+std::unordered_map<std::string, std::string> parse_manifest(const std::string& manifest_path) {
+    std::ifstream input(manifest_path.c_str());
     if (!input) {
-        throw std::runtime_error("failed to open manifest: " + manifest_path.string());
+        throw std::runtime_error("failed to open manifest: " + manifest_path);
     }
     std::unordered_map<std::string, std::string> manifest;
     std::string line;
@@ -156,16 +227,16 @@ std::vector<int> parse_int_list(const std::string& text) {
     return values;
 }
 
-std::vector<float> read_f32_file(const std::filesystem::path& path) {
-    std::ifstream input(path, std::ios::binary);
+std::vector<float> read_f32_file(const std::string& path) {
+    std::ifstream input(path.c_str(), std::ios::binary);
     if (!input) {
-        throw std::runtime_error("failed to open binary file: " + path.string());
+        throw std::runtime_error("failed to open binary file: " + path);
     }
     input.seekg(0, std::ios::end);
     const std::streamsize file_size = input.tellg();
     input.seekg(0, std::ios::beg);
     if (file_size % static_cast<std::streamsize>(sizeof(float)) != 0) {
-        throw std::runtime_error("binary file is not float32-aligned: " + path.string());
+        throw std::runtime_error("binary file is not float32-aligned: " + path);
     }
     std::vector<float> values(static_cast<std::size_t>(file_size / static_cast<std::streamsize>(sizeof(float))));
     input.read(reinterpret_cast<char*>(values.data()), file_size);
@@ -201,7 +272,7 @@ int run_validate(const CliOptions& options) {
         throw std::runtime_error("--fixture-dir is required for validate mode");
     }
 
-    const std::filesystem::path manifest_path = options.fixture_dir / "manifest.txt";
+    const std::string manifest_path = join_path(options.fixture_dir, "manifest.txt");
     const auto manifest = parse_manifest(manifest_path);
     ModelConfig config;
     config.n_layer = std::stoi(manifest.at("n_layer"));
@@ -214,14 +285,14 @@ int run_validate(const CliOptions& options) {
     const double epsilon = std::stod(manifest.at("validation_epsilon"));
 
     Model host_model = make_empty_model(config);
-    load_model_from_f32(host_model, read_f32_file(options.fixture_dir / manifest.at("weights_init_file")));
+    load_model_from_f32(host_model, read_f32_file(join_path(options.fixture_dir, manifest.at("weights_init_file"))));
     DeviceModel device_model = upload_model_to_device(host_model);
     const BatchTokens batch = make_batch_of_one(tokens);
     try {
         const KernelResult result = run_forward_batched(device_model, batch);
 
-        compare_arrays("logits", result.logits, read_f32_file(options.fixture_dir / manifest.at("expected_logits_file")), epsilon);
-        compare_arrays("loss", {result.loss}, read_f32_file(options.fixture_dir / manifest.at("expected_loss_file")), epsilon);
+        compare_arrays("logits", result.logits, read_f32_file(join_path(options.fixture_dir, manifest.at("expected_logits_file"))), epsilon);
+        compare_arrays("loss", {result.loss}, read_f32_file(join_path(options.fixture_dir, manifest.at("expected_loss_file"))), epsilon);
         std::cout << "validation=pass\n";
     } catch (...) {
         free_device_model(&device_model);
@@ -245,17 +316,49 @@ int run_benchmark(const CliOptions& options) {
     if (docs.empty()) {
         throw std::runtime_error("dataset is empty");
     }
-    const auto [uchars, vocab] = build_vocab(docs);
+    const std::pair<std::string, std::unordered_map<char, int>> vocab_result = build_vocab(docs);
+    const std::string& uchars = vocab_result.first;
+    const std::unordered_map<char, int>& vocab = vocab_result.second;
     BenchmarkPreset preset = preset_it->second;
     preset.config.vocab_size = static_cast<int>(uchars.size()) + 1;
     const int requested_steps = options.num_steps >= 0 ? options.num_steps : preset.steps;
     const int steps = std::min(requested_steps, static_cast<int>(docs.size()));
+    const std::vector<BatchTokens> batches = build_length_bucketed_batches(
+        docs,
+        steps,
+        vocab,
+        static_cast<int>(uchars.size()),
+        options.batch_size
+    );
     const Model host_model = initialize_model(preset.config, options.seed);
-    std::string last_doc;
-    for (int step = 0; step < steps; ++step) {
-        last_doc = docs[step];
+    DeviceModel device_model = upload_model_to_device(host_model);
+    double last_loss = 0.0;
+    double mean_loss = 0.0;
+    double weighted_loss_sum = 0.0;
+    int loss_item_count = 0;
+    double forward_pass_seconds_cumulative = 0.0;
+    const std::string last_doc = steps > 0 ? docs[steps - 1] : "";
+    try {
+        for (std::size_t batch_idx = 0; batch_idx < batches.size(); ++batch_idx) {
+            const BatchTokens& batch = batches[batch_idx];
+            const auto forward_start = std::chrono::steady_clock::now();
+            last_loss = run_forward_batched(device_model, batch).loss;
+            const auto forward_end = std::chrono::steady_clock::now();
+            forward_pass_seconds_cumulative += std::chrono::duration<double>(forward_end - forward_start).count();
+
+            const int usable_seq_len = compute_usable_seq_len(preset.config, batch);
+            const int batch_loss_items = batch.batch_size * usable_seq_len;
+            weighted_loss_sum += last_loss * static_cast<double>(batch_loss_items);
+            loss_item_count += batch_loss_items;
+        }
+        if (loss_item_count > 0) {
+            mean_loss = weighted_loss_sum / static_cast<double>(loss_item_count);
+        }
+    } catch (...) {
+        free_device_model(&device_model);
+        throw;
     }
-    (void)host_model;
+    free_device_model(&device_model);
     const double total_program_seconds =
         std::chrono::duration<double>(std::chrono::steady_clock::now() - benchmark_start).count();
 
@@ -263,11 +366,14 @@ int run_benchmark(const CliOptions& options) {
               << "preset=" << options.preset << ' '
               << "requested_steps=" << requested_steps << ' '
               << "steps=" << steps << ' '
+              << "batch_size=" << options.batch_size << ' '
+              << "batches=" << batches.size() << ' '
               << "last_doc=" << last_doc << ' '
-              << "loss=0 "
-              << "forward_pass_seconds_cumulative=0 "
+              << "loss=" << std::setprecision(8) << last_loss << ' '
+              << "mean_loss=" << std::setprecision(8) << mean_loss << ' '
+              << "forward_pass_seconds_cumulative=" << std::setprecision(8) << forward_pass_seconds_cumulative << ' '
               << "total_program_seconds=" << std::setprecision(8) << total_program_seconds << ' '
-              << "benchmark_status=stubbed_cuda\n";
+              << "benchmark_status=forward_cuda\n";
     return 0;
 }
 

@@ -3,8 +3,6 @@
 #include <cmath>
 #include <cuda_runtime.h>
 
-#include <device_atomic_functions.h>
-#include <driver_types.h>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -23,12 +21,23 @@ void free_workspace(DeviceWorkspace* workspace);
 template <typename T>
 void free_buffer(DeviceBuffer<T>* device_buffer);
 
-void validate_batch(const BatchTokens& batch) {
+void validate_batch(const ModelConfig& config, const BatchTokens& batch) {
     if (batch.batch_size < 1) {
         throw std::runtime_error("batch must contain at least one sequence");
     }
     if (batch.batch_seq_length < 2) {
         throw std::runtime_error("token sequence must contain at least one input and one target token");
+    }
+    if (batch.tokens.size() != static_cast<std::size_t>(batch.batch_size) * static_cast<std::size_t>(batch.batch_seq_length)) {
+        throw std::runtime_error("batch token count must equal batch_size * batch_seq_length");
+    }
+    if (config.n_head < 1 || config.n_embd % config.n_head != 0) {
+        throw std::runtime_error("n_embd must be divisible by n_head");
+    }
+    for (int token : batch.tokens) {
+        if (token < 0 || token >= config.vocab_size) {
+            throw std::runtime_error("batch contains token id outside vocabulary");
+        }
     }
 }
 
@@ -308,114 +317,113 @@ __global__ void relu_kernel(
     input[idx] = 0.0; 
 }
 
-__device__ void softmax(double* logits, int n) {
-    double max_val = logits[0];
-    for (int i = 1; i < n; ++i) {
-        if (x[i] > max_val) {
-            max_val = logits[i];
-        }
-    }
-    double sum = 0.0;
-    for (int i = 0; i < n; ++i) {
-        logits[i] = exp(logits[i] - max_val);
-        sum += logits[i];
-    }
-    double inv_sum = 1.0 / sum;
-    for (int i = 0; i < n; ++i) {
-        logits[i] *= inv_sum;
-    }
-}
-
-
 __global__ void self_attn_kernel(
-    double* q,
-    double* k_layer,
-    double* v_layer, 
-    int n_head, 
-    double* attn_out, 
-    int batch_size,
-    int usable_seq_len, 
-    int head_dim, 
-    int n_embd
-) {
-    int total_tokens = batch_size * usable_seq_len;
-    int idx = blockDim.x * blockIdx.x + threadIdx.x;
-    
-    int token_pos = idx % usable_seq_len; 
-
-    if (idx >= total_tokens) return;
-
-    int seq_id = idx / usable_seq_len; 
-    
-    int sequence_start = seq_id * usable_seq_len * n_embd;
-    double* q_token = q + sequence_start + (token_pos * n_embd);  
-
-
-    for (int head = 0; head < n_head; ++head) {
-        const int head_start = head * head_dim;
-        double attn_logits[100]; //TODO fix 
-        for (int t = 0; t <= token_pos; ++t) {
-            double* k_layer_start = k_layer + sequence_start + (t * n_embd);  
-            double dot = 0.0;
-            for (int j = 0; j < head_dim; ++j) {
-                dot += q_token[head_start + j] * k_layer_start[head_start + j];
-            }
-            attn_logits[t] = dot / std::sqrt(static_cast<double>(head_dim));
-        }
-
-        softmax(attn_logits, token_pos); 
-        for (int t = 0; t <= token_pos; ++t) {
-            double* v_layer_start = v_layer + sequence_start + (t * n_embd);  
-            const double weight = attn_logits[t];
-            for (int j = 0; j < head_dim; ++j) {
-                attn_out[head_start + j] += weight * v_layer_start[head_start + j];
-            }
-        }
-    }
-    
-}
-
-
-__global__ void logits_and_loss_kernel(
-    double* logits,
-    double* loss,
+    const double* q,
+    const double* k_layer,
+    const double* v_layer,
+    double* attn_out,
     int batch_size,
     int usable_seq_len,
-    int n_embd,
-    int vocab_size, 
-    int* tokens, 
+    int n_head,
+    int head_dim,
+    int n_embd
 ) {
-    int total_items = batch_size * usable_seq_len;
-    int idx = blockDim.x * blockIdx.x + threadIdx.x;
-    
-    int token_pos = idx % usable_seq_len; 
-
-    if (idx >= total_items) return;
-
-    int logits_token_start_idx = token_pos * vocab_size; 
-
-    double* logits_token_start = logits + logits_token_start_idx;
-    softmax(logits_token_start, vocab_size);
-
-    __syncthreads();
-
-    int next_token_id = tokens[token_pos + 1];
-    
-    double val = -std::log(logits_token_start[next_token_id]);
-    atomicAdd(loss, val);
-
-
-    __syncthreads();
-
-
-    if (idx == 0) {
-        *loss = *loss / static_cast<double>(usable_seq_len * batch_size);
+    const int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    const int total = batch_size * usable_seq_len * n_embd;
+    if (idx >= total) {
+        return;
     }
 
+    const int col = idx % n_embd;
+    const int token_slot = idx / n_embd;
+    const int token_pos = token_slot % usable_seq_len;
+    const int batch_idx = token_slot / usable_seq_len;
+    const int sequence_start = batch_idx * usable_seq_len * n_embd;
+    const int token_start = sequence_start + token_pos * n_embd;
+    const int head = col / head_dim;
+    const int head_start = head * head_dim;
+    const double scale = 1.0 / sqrt(static_cast<double>(head_dim));
+
+    if (head >= n_head) {
+        return;
+    }
+
+    double max_logit = -INFINITY;
+    for (int t = 0; t <= token_pos; ++t) {
+        const int past_start = sequence_start + t * n_embd;
+        double dot = 0.0;
+        for (int j = 0; j < head_dim; ++j) {
+            dot += q[token_start + head_start + j] * k_layer[past_start + head_start + j];
+        }
+        const double score = dot * scale;
+        if (score > max_logit) {
+            max_logit = score;
+        }
+    }
+
+    double exp_sum = 0.0;
+    for (int t = 0; t <= token_pos; ++t) {
+        const int past_start = sequence_start + t * n_embd;
+        double dot = 0.0;
+        for (int j = 0; j < head_dim; ++j) {
+            dot += q[token_start + head_start + j] * k_layer[past_start + head_start + j];
+        }
+        exp_sum += exp(dot * scale - max_logit);
+    }
+
+    double weighted_value = 0.0;
+    for (int t = 0; t <= token_pos; ++t) {
+        const int past_start = sequence_start + t * n_embd;
+        double dot = 0.0;
+        for (int j = 0; j < head_dim; ++j) {
+            dot += q[token_start + head_start + j] * k_layer[past_start + head_start + j];
+        }
+        const double weight = exp(dot * scale - max_logit) / exp_sum;
+        weighted_value += weight * v_layer[past_start + col];
+    }
+
+    attn_out[idx] = weighted_value;
+}
+
+
+__global__ void cross_entropy_loss_kernel(
+    const double* logits,
+    double* loss,
+    const int* tokens,
+    int batch_size,
+    int batch_seq_length,
+    int usable_seq_len,
+    int vocab_size
+) {
+    if (blockIdx.x != 0 || threadIdx.x != 0) {
+        return;
+    }
+
+    double total_loss = 0.0;
+    for (int batch_idx = 0; batch_idx < batch_size; ++batch_idx) {
+        for (int pos = 0; pos < usable_seq_len; ++pos) {
+            const int logits_start = (batch_idx * usable_seq_len + pos) * vocab_size;
+            const int target_token = tokens[batch_idx * batch_seq_length + pos + 1];
+            double max_logit = logits[logits_start];
+            for (int vocab_idx = 1; vocab_idx < vocab_size; ++vocab_idx) {
+                const double value = logits[logits_start + vocab_idx];
+                if (value > max_logit) {
+                    max_logit = value;
+                }
+            }
+
+            double exp_sum = 0.0;
+            for (int vocab_idx = 0; vocab_idx < vocab_size; ++vocab_idx) {
+                exp_sum += exp(logits[logits_start + vocab_idx] - max_logit);
+            }
+            total_loss += log(exp_sum) + max_logit - logits[logits_start + target_token];
+        }
+    }
+    *loss = total_loss / static_cast<double>(batch_size * usable_seq_len);
 }
 
 void launch_embedding(const DeviceModel& device_model, DeviceWorkspace* workspace, const ModelConfig& config, const BatchTokens& batch) {
-    const int usable_seq_len = outline_usable_seq_len(config, batch);
+    const int usable_seq_len = compute_usable_seq_len(config, batch);
     const auto launch = make_1d_launch(
         static_cast<std::size_t>(batch.batch_size) * static_cast<std::size_t>(usable_seq_len) *
         static_cast<std::size_t>(config.n_embd)
@@ -430,7 +438,7 @@ void launch_embedding(const DeviceModel& device_model, DeviceWorkspace* workspac
         usable_seq_len,
         config.n_embd
     );
-    cuda_check(cudaGetLastError(), "launching embedding_lookup_kernel_outline");
+    cuda_check(cudaGetLastError(), "launching embedding_lookup_kernel");
 }
 
 
@@ -478,8 +486,8 @@ void launch_linear(
         weights,
         in_dim, 
         out_dim,
-        usable_seq_len,
-        batch_size
+        batch_size,
+        usable_seq_len
     );
 
     cuda_check(cudaGetLastError(), "launching linear_kernel");
@@ -487,30 +495,31 @@ void launch_linear(
 
 
 void launch_self_attn(
-    double* q,
-    double* k_layer,
-    double* v_layer, 
-    int n_head, 
-    double* attn_out, 
-    int usable_seq_len, 
-    int head_dim, 
-    int n_embd, 
-    int batch_size
+    const double* q,
+    const double* k_layer,
+    const double* v_layer,
+    double* attn_out,
+    int batch_size,
+    int usable_seq_len,
+    int n_head,
+    int head_dim,
+    int n_embd
 ) {
     const auto launch = make_1d_launch(
         static_cast<std::size_t>(batch_size) *
-        static_cast<std::size_t>(usable_seq_len)
+        static_cast<std::size_t>(usable_seq_len) *
+        static_cast<std::size_t>(n_embd)
     );
 
     self_attn_kernel<<<launch.blocks, launch.threads>>>(
         q,
         k_layer,
-        v_layer, 
-        n_head, 
-        attn_out, 
+        v_layer,
+        attn_out,
         batch_size,
-        usable_seq_len, 
-        head_dim, 
+        usable_seq_len,
+        n_head,
+        head_dim,
         n_embd
     );
 
@@ -522,13 +531,10 @@ void launch_vec_add(
     const double* left,
     const double* right,
     double* output,
-    const int n, 
-    int batch_size,
-    int usable_seq_len
+    const int n
 ) {
     const auto launch = make_1d_launch(
-        static_cast<std::size_t>(batch_size) *
-        static_cast<std::size_t>(usable_seq_len)
+        static_cast<std::size_t>(n)
     );
 
     add_vec_kernel<<<launch.blocks, launch.threads>>>(
@@ -538,13 +544,13 @@ void launch_vec_add(
         n
     );
 
-    cuda_check(cudaGetLastError(), "launching self_attn_kernel");
+    cuda_check(cudaGetLastError(), "launching add_vec_kernel");
 }
 
 
 void launch_relu(
     double* input, 
-    int size, 
+    int size
 ) {
     const auto launch = make_1d_launch(
         size
@@ -555,7 +561,7 @@ void launch_relu(
         size
     );
 
-    cuda_check(cudaGetLastError(), "launching self_attn_kernel");
+    cuda_check(cudaGetLastError(), "launching relu_kernel");
 }
 
 void launch_transformer(const DeviceModel& device_model, DeviceWorkspace* workspace, const ModelConfig& config, const BatchTokens& batch) {
@@ -580,7 +586,7 @@ void launch_transformer(const DeviceModel& device_model, DeviceWorkspace* worksp
     logits_and_loss(x -> logits/loss)
     */
 
-    const int usable_seq_len = outline_usable_seq_len(config, batch);
+    const int usable_seq_len = compute_usable_seq_len(config, batch);
 
 
     launch_embedding(device_model, workspace, config, batch);
@@ -596,38 +602,45 @@ void launch_transformer(const DeviceModel& device_model, DeviceWorkspace* worksp
         
         launch_linear(workspace->norm.ptr, k_layer, device_model.attn_wk[layer_idx].ptr, config.n_embd, config.n_embd, batch.batch_size, usable_seq_len);
         launch_linear(workspace->norm.ptr, v_layer, device_model.attn_wv[layer_idx].ptr, config.n_embd, config.n_embd, batch.batch_size, usable_seq_len);
-        launch_self_attn(workspace->q.ptr, k_layer, v_layer, config.n_head, workspace->attn_out.ptr, batch.batch_size, usable_seq_len, config.head_dim(), config.n_embd); 
+        launch_self_attn(
+            workspace->q.ptr,
+            k_layer,
+            v_layer,
+            workspace->attn_out.ptr,
+            batch.batch_size,
+            usable_seq_len,
+            config.n_head,
+            config.head_dim(),
+            config.n_embd
+        );
         
         launch_linear(workspace->attn_out.ptr, workspace->x_tmp.ptr, device_model.attn_wo[layer_idx].ptr, config.n_embd, config.n_embd, batch.batch_size, usable_seq_len);
-        launch_vec_add(workspace->x.ptr, workspace->x_tmp.ptr, workspace->x_mid.ptr, workspace->x_mid.count, batch.batch_size, usable_seq_len);
+        launch_vec_add(workspace->x.ptr, workspace->x_tmp.ptr, workspace->x_mid.ptr, static_cast<int>(workspace->x_mid.count));
         launch_rmsnorm(workspace->x_mid.ptr, workspace->x_norm2.ptr, config.n_embd, batch.batch_size, usable_seq_len);
         
         //* MLP Perceptron 
         launch_linear(workspace->x_norm2.ptr, workspace->mlp_hidden.ptr, device_model.mlp_fc1[layer_idx].ptr, config.n_embd, config.mlp_dim(), batch.batch_size, usable_seq_len);
-        launch_relu(workspace->mlp_hidden.ptr, workspace->mlp_hidden.count); 
+        launch_relu(workspace->mlp_hidden.ptr, static_cast<int>(workspace->mlp_hidden.count)); 
         launch_linear(workspace->mlp_hidden.ptr, workspace->fc2.ptr, device_model.mlp_fc2[layer_idx].ptr, config.mlp_dim(), config.n_embd, batch.batch_size, usable_seq_len);
-        launch_vec_add(workspace->x_mid.ptr, workspace->fc2.ptr, workspace->x.ptr, workspace->x.count, batch.batch_size, usable_seq_len);
+        launch_vec_add(workspace->x_mid.ptr, workspace->fc2.ptr, workspace->x.ptr, static_cast<int>(workspace->x.count));
     }
 }
 
 void launch_logits_and_loss(const DeviceModel& device_model, DeviceWorkspace* workspace, const ModelConfig& config, const BatchTokens& batch) {
-    // Pseudocode:
-    // 1. Project hidden[b, t, :] -> logits[b, t, :]
-    // 2. Compute per-position cross-entropy against tokens[b, t + 1]
-    // 3. Reduce into one scalar loss
-    //
-    // You can start with one kernel for logits and one kernel for the loss reduction.
-    const int usable_seq_len = outline_usable_seq_len(config, batch);
+    const int usable_seq_len = compute_usable_seq_len(config, batch);
 
 
     launch_linear(workspace->x.ptr, workspace->logits.ptr, device_model.lm_head.ptr, config.n_embd, config.vocab_size, batch.batch_size, usable_seq_len);
-    //TODO write launch_softmax function (create a new softmax thats seperate form the device only one)
-    
-    
-    (void)device_model;
-    (void)workspace;
-    (void)config;
-    (void)batch;
+    cross_entropy_loss_kernel<<<1, 1>>>(
+        workspace->logits.ptr,
+        workspace->loss.ptr,
+        workspace->tokens.ptr,
+        batch.batch_size,
+        batch.batch_seq_length,
+        usable_seq_len,
+        config.vocab_size
+    );
+    cuda_check(cudaGetLastError(), "launching cross_entropy_loss_kernel");
 }
 
 }  // namespace
@@ -645,23 +658,37 @@ void free_device_model(DeviceModel* device_model) {
 }
 
 KernelResult run_forward_batched(const DeviceModel& device_model, const BatchTokens& batch) {
-    validate_batch(batch);
-    const int usable_seq_len = outline_usable_seq_len(device_model.config, batch);
+    validate_batch(device_model.config, batch);
+    const int usable_seq_len = compute_usable_seq_len(device_model.config, batch);
 
-    // Host-side pseudocode for the full CUDA path:
-    //
     DeviceWorkspace workspace = allocate_workspace(device_model.config, batch, usable_seq_len);
+    KernelResult result;
+    result.seq_len = usable_seq_len;
     try {
-           launch_transformer(device_model, &workspace, device_model.config, batch);
-           launch_logits_and_loss(device_model, &workspace, device_model.config, batch);
-    //     cuda_check(cudaDeviceSynchronize(), "synchronizing CUDA kernels");
-    //     // copy logits / loss back to host
-    //     // pack a KernelResult and return it
-        throw std::runtime_error(
-            "parallel_cpp CUDA outline launched placeholder kernels only. Fill in methods/parallel_cpp/kernel.cu to produce logits and loss."
+        launch_transformer(device_model, &workspace, device_model.config, batch);
+        launch_logits_and_loss(device_model, &workspace, device_model.config, batch);
+        cuda_check(cudaDeviceSynchronize(), "synchronizing CUDA kernels");
+
+        result.logits.resize(workspace.logits.count);
+        if (!result.logits.empty()) {
+            cuda_check(
+                cudaMemcpy(
+                    result.logits.data(),
+                    workspace.logits.ptr,
+                    workspace.logits.count * sizeof(double),
+                    cudaMemcpyDeviceToHost
+                ),
+                "copying logits to host"
+            );
+        }
+        cuda_check(
+            cudaMemcpy(&result.loss, workspace.loss.ptr, sizeof(double), cudaMemcpyDeviceToHost),
+            "copying loss to host"
         );
     } catch (...) {
         free_workspace(&workspace);
         throw;
     }
+    free_workspace(&workspace);
+    return result;
 }

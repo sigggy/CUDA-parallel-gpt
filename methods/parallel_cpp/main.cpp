@@ -22,12 +22,19 @@ struct CliOptions {
     std::string sample_name = "anna";
     std::string preset = "small";
     int num_steps = -1;
+    int batch_size = 1;
     std::uint32_t seed = 42;
 };
 
 struct BenchmarkPreset {
     ModelConfig config;
     int steps = 0;
+};
+
+struct BatchBucket {
+    int seq_length = 0;
+    int sequence_count = 0;
+    std::vector<int> tokens;
 };
 
 const std::unordered_map<std::string, BenchmarkPreset> kBenchmarkPresets = {
@@ -41,6 +48,15 @@ BatchTokens make_batch_of_one(const std::vector<int>& tokens) {
     batch.tokens = tokens;
     batch.batch_size = 1;
     batch.batch_seq_length = static_cast<int>(tokens.size());
+    return batch;
+}
+
+BatchTokens make_batch_from_bucket(BatchBucket* bucket) {
+    BatchTokens batch;
+    batch.tokens.swap(bucket->tokens);
+    batch.batch_size = bucket->sequence_count;
+    batch.batch_seq_length = bucket->seq_length;
+    bucket->sequence_count = 0;
     return batch;
 }
 
@@ -79,6 +95,8 @@ CliOptions parse_cli(int argc, char** argv) {
             options.preset = require_value(argc, argv, &idx);
         } else if (arg == "--num-steps") {
             options.num_steps = std::stoi(require_value(argc, argv, &idx));
+        } else if (arg == "--batch-size") {
+            options.batch_size = std::stoi(require_value(argc, argv, &idx));
         } else if (arg == "--seed") {
             options.seed = static_cast<std::uint32_t>(std::stoul(require_value(argc, argv, &idx)));
         } else {
@@ -87,6 +105,9 @@ CliOptions parse_cli(int argc, char** argv) {
     }
     if (options.mode.empty()) {
         throw std::runtime_error("--mode is required");
+    }
+    if (options.batch_size < 1) {
+        throw std::runtime_error("--batch-size must be at least 1");
     }
     return options;
 }
@@ -133,6 +154,45 @@ std::vector<int> encode_doc(const std::string& doc, const std::unordered_map<cha
     }
     tokens.push_back(bos_token_id);
     return tokens;
+}
+
+std::vector<BatchTokens> build_length_bucketed_batches(
+    const std::vector<std::string>& docs,
+    int doc_count,
+    const std::unordered_map<char, int>& vocab,
+    int bos_token_id,
+    int max_batch_size
+) {
+    std::vector<BatchTokens> batches;
+    std::unordered_map<int, BatchBucket> buckets;
+    std::vector<int> length_order;
+
+    for (int doc_idx = 0; doc_idx < doc_count; ++doc_idx) {
+        const std::vector<int> tokens = encode_doc(docs[doc_idx], vocab, bos_token_id);
+        const int seq_length = static_cast<int>(tokens.size());
+        BatchBucket& bucket = buckets[seq_length];
+        if (bucket.seq_length == 0) {
+            bucket.seq_length = seq_length;
+            bucket.tokens.reserve(static_cast<std::size_t>(max_batch_size) * static_cast<std::size_t>(seq_length));
+            length_order.push_back(seq_length);
+        }
+
+        bucket.tokens.insert(bucket.tokens.end(), tokens.begin(), tokens.end());
+        ++bucket.sequence_count;
+        if (bucket.sequence_count == max_batch_size) {
+            batches.push_back(make_batch_from_bucket(&bucket));
+            bucket.tokens.reserve(static_cast<std::size_t>(max_batch_size) * static_cast<std::size_t>(seq_length));
+        }
+    }
+
+    for (int seq_length : length_order) {
+        BatchBucket& bucket = buckets[seq_length];
+        if (bucket.sequence_count > 0) {
+            batches.push_back(make_batch_from_bucket(&bucket));
+        }
+    }
+
+    return batches;
 }
 
 std::unordered_map<std::string, std::string> parse_manifest(const std::string& manifest_path) {
@@ -263,20 +323,36 @@ int run_benchmark(const CliOptions& options) {
     preset.config.vocab_size = static_cast<int>(uchars.size()) + 1;
     const int requested_steps = options.num_steps >= 0 ? options.num_steps : preset.steps;
     const int steps = std::min(requested_steps, static_cast<int>(docs.size()));
+    const std::vector<BatchTokens> batches = build_length_bucketed_batches(
+        docs,
+        steps,
+        vocab,
+        static_cast<int>(uchars.size()),
+        options.batch_size
+    );
     const Model host_model = initialize_model(preset.config, options.seed);
     DeviceModel device_model = upload_model_to_device(host_model);
     double last_loss = 0.0;
+    double mean_loss = 0.0;
+    double weighted_loss_sum = 0.0;
+    int loss_item_count = 0;
     double forward_pass_seconds_cumulative = 0.0;
-    std::string last_doc;
+    const std::string last_doc = steps > 0 ? docs[steps - 1] : "";
     try {
-        for (int step = 0; step < steps; ++step) {
-            last_doc = docs[step];
-            const std::vector<int> tokens = encode_doc(last_doc, vocab, static_cast<int>(uchars.size()));
-            const BatchTokens batch = make_batch_of_one(tokens);
+        for (std::size_t batch_idx = 0; batch_idx < batches.size(); ++batch_idx) {
+            const BatchTokens& batch = batches[batch_idx];
             const auto forward_start = std::chrono::steady_clock::now();
             last_loss = run_forward_batched(device_model, batch).loss;
             const auto forward_end = std::chrono::steady_clock::now();
             forward_pass_seconds_cumulative += std::chrono::duration<double>(forward_end - forward_start).count();
+
+            const int usable_seq_len = compute_usable_seq_len(preset.config, batch);
+            const int batch_loss_items = batch.batch_size * usable_seq_len;
+            weighted_loss_sum += last_loss * static_cast<double>(batch_loss_items);
+            loss_item_count += batch_loss_items;
+        }
+        if (loss_item_count > 0) {
+            mean_loss = weighted_loss_sum / static_cast<double>(loss_item_count);
         }
     } catch (...) {
         free_device_model(&device_model);
@@ -290,8 +366,11 @@ int run_benchmark(const CliOptions& options) {
               << "preset=" << options.preset << ' '
               << "requested_steps=" << requested_steps << ' '
               << "steps=" << steps << ' '
+              << "batch_size=" << options.batch_size << ' '
+              << "batches=" << batches.size() << ' '
               << "last_doc=" << last_doc << ' '
               << "loss=" << std::setprecision(8) << last_loss << ' '
+              << "mean_loss=" << std::setprecision(8) << mean_loss << ' '
               << "forward_pass_seconds_cumulative=" << std::setprecision(8) << forward_pass_seconds_cumulative << ' '
               << "total_program_seconds=" << std::setprecision(8) << total_program_seconds << ' '
               << "benchmark_status=forward_cuda\n";

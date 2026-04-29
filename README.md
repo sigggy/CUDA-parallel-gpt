@@ -48,7 +48,7 @@ Parallel C++:
 build/parallel_cpp --mode validate --fixture-dir training_data/fixtures/small_case
 ```
 
-Note: `parallel_cpp` requires a CUDA build and `nvcc` on `PATH`.
+Note: `parallel_cpp` requires a CUDA build and `nvcc` on `PATH`. The CUDA target is built as C++14 for compatibility with older `nvcc` versions.
 
 ### Benchmark a single method
 
@@ -76,10 +76,11 @@ Parallel C++:
 build/parallel_cpp \
   --mode benchmark \
   --dataset training_data/datasets/names.txt \
-  --preset small
+  --preset small \
+  --batch-size 6
 ```
 
-Note: `parallel_cpp` currently runs the same forward-only batch-of-one benchmark flow through the CUDA path.
+Note: `parallel_cpp` preprocesses benchmark names into fixed-length batches before launching the CUDA forward path. Each batch contains only sequences with the same token length; the final batch for a length bucket may be smaller than `--batch-size`.
 
 Optional presets:
 
@@ -95,6 +96,17 @@ build/serial_cpp \
   --dataset training_data/datasets/names.txt \
   --preset small \
   --num-steps 10
+```
+
+For the CUDA method, override the maximum batch size with:
+
+```bash
+build/parallel_cpp \
+  --mode benchmark \
+  --dataset training_data/datasets/names.txt \
+  --preset small \
+  --num-steps 10 \
+  --batch-size 6
 ```
 
 ### Run the full benchmark sweep
@@ -135,7 +147,7 @@ The Python version is the reference implementation. It is used to generate deter
 
 Those files live in `training_data/fixtures/small_case/`. Validation works by loading the fixture weights, running the method’s forward pass on the fixed token sequence from the manifest, and comparing the outputs against the Python ground truth within an epsilon.
 
-Benchmarking keeps the GPT-style data flow without the training update. Each executable loads the dataset, builds the vocabulary, initializes weights from the fixed seed, and then processes the first `k` names in dataset order, where `k` is the preset size or `--num-steps`. For each benchmark step it builds `[BOS] + doc + [BOS]`, runs the forward pass across that sequence, and computes the next-token loss. The outer script uses `/usr/bin/time -p` and reports the raw wall-clock `real` time from one run. This means timing includes process startup and dataset loading for every method equally.
+Benchmarking keeps the GPT-style data flow without the training update. Each executable loads the dataset, builds the vocabulary, initializes weights from the fixed seed, and then processes the first `k` names in dataset order, where `k` is the preset size or `--num-steps`. The serial methods run one tokenized name at a time. The CUDA method tokenizes the selected names up front, greedily groups them by equal token sequence length into batches of up to `--batch-size`, then loops over the resulting batch array. The outer script uses `/usr/bin/time -p` and reports the raw wall-clock `real` time from one run. This means timing includes process startup and dataset loading for every method equally.
 
 The current methods are:
 
@@ -143,4 +155,4 @@ The current methods are:
 - `serial_cpp`: CPU baseline
 - `parallel_cpp`: CUDA-target forward implementation
 
-Right now `parallel_cpp` keeps a copied host-side flow similar to `serial_cpp` up to the point where actual forward computation begins. After that boundary, the parallel method switches to CUDA kernels for embeddings, RMSNorm, linear projections, causal self-attention, ReLU, logits, and loss. It is forward-only, assumes fixed sequence lengths within a batch, does not implement padding, and builds only from the `.cu` translation unit with `nvcc`.
+Right now `parallel_cpp` keeps a copied host-side flow similar to `serial_cpp` up to the point where actual forward computation begins. After that boundary, the parallel method switches to CUDA kernels for embeddings, RMSNorm, linear projections, causal self-attention, ReLU, logits, and loss. It is forward-only, assumes fixed sequence lengths within a batch, does not implement padding, and builds only from the `.cu` translation unit with `nvcc` in C++14 mode.

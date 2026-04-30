@@ -36,7 +36,7 @@ PRESETS = (
     "model-very-large-1k",
     "model-extra-large-1k",
 )
-DEFAULT_BATCH_SIZE = "32"
+DEFAULT_BATCH_SIZE = "512"
 METHOD_PRESETS = {
     "serial_python": {"small", "medium"},
 }

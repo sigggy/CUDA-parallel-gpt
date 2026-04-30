@@ -1,0 +1,2059 @@
+{
+  "dataset": "/home/sigbot/parallel-gpt/training_data/datasets/names.txt",
+  "fixture_dir": "/home/sigbot/parallel-gpt/training_data/fixtures/small_case",
+  "presets": {
+    "small": {
+      "n_layer": 1,
+      "n_embd": 64,
+      "block_size": 64,
+      "n_head": 4,
+      "steps": 200
+    },
+    "medium": {
+      "n_layer": 2,
+      "n_embd": 128,
+      "block_size": 64,
+      "n_head": 8,
+      "steps": 1000
+    },
+    "large": {
+      "n_layer": 4,
+      "n_embd": 256,
+      "block_size": 128,
+      "n_head": 8,
+      "steps": 2500
+    },
+    "very-large": {
+      "n_layer": 6,
+      "n_embd": 384,
+      "block_size": 128,
+      "n_head": 12,
+      "steps": 5000
+    },
+    "extra-large": {
+      "n_layer": 8,
+      "n_embd": 512,
+      "block_size": 256,
+      "n_head": 16,
+      "steps": 10000
+    },
+    "names-1k": {
+      "n_layer": 1,
+      "n_embd": 64,
+      "block_size": 64,
+      "n_head": 4,
+      "steps": 1000
+    },
+    "names-5k": {
+      "n_layer": 1,
+      "n_embd": 64,
+      "block_size": 64,
+      "n_head": 4,
+      "steps": 5000
+    },
+    "names-10k": {
+      "n_layer": 1,
+      "n_embd": 64,
+      "block_size": 64,
+      "n_head": 4,
+      "steps": 10000
+    },
+    "names-20k": {
+      "n_layer": 2,
+      "n_embd": 128,
+      "block_size": 64,
+      "n_head": 8,
+      "steps": 20000
+    },
+    "names-30k": {
+      "n_layer": 2,
+      "n_embd": 128,
+      "block_size": 64,
+      "n_head": 8,
+      "steps": 30000
+    },
+    "model-small-1k": {
+      "n_layer": 1,
+      "n_embd": 64,
+      "block_size": 64,
+      "n_head": 4,
+      "steps": 1000
+    },
+    "model-medium-1k": {
+      "n_layer": 2,
+      "n_embd": 128,
+      "block_size": 64,
+      "n_head": 8,
+      "steps": 1000
+    },
+    "model-large-1k": {
+      "n_layer": 4,
+      "n_embd": 256,
+      "block_size": 128,
+      "n_head": 8,
+      "steps": 1000
+    },
+    "model-very-large-1k": {
+      "n_layer": 6,
+      "n_embd": 384,
+      "block_size": 128,
+      "n_head": 12,
+      "steps": 1000
+    },
+    "model-extra-large-1k": {
+      "n_layer": 8,
+      "n_embd": 512,
+      "block_size": 256,
+      "n_head": 16,
+      "steps": 1000
+    }
+  },
+  "build": {
+    "core": {
+      "command": [
+        "make",
+        "-C",
+        "/home/sigbot/parallel-gpt",
+        "fixtures",
+        "build/serial_cpp",
+        "build/parallel_cpp"
+      ],
+      "returncode": 0,
+      "stdout": "make: Entering directory '/home/sigbot/parallel-gpt'\npython3 methods/serial_python/serial.py --mode dump-fixtures --dataset training_data/datasets/names.txt --fixture-dir training_data/fixtures/small_case --sample-name anna\nwrote fixture bundle to training_data/fixtures/small_case\nmake: 'build/serial_cpp' is up to date.\nmake: 'build/parallel_cpp' is up to date.\nmake: Leaving directory '/home/sigbot/parallel-gpt'\n",
+      "stderr": ""
+    }
+  },
+  "validate": {
+    "serial_python": {
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "logits max_abs_error=4.7673703e-08 at_index=10\nloss max_abs_error=1.0562707e-07 at_index=0\nvalidation=pass\n",
+      "stderr": ""
+    },
+    "serial_torch": {
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "logits max_abs_error=4.7673703e-08 at_index=10\nloss max_abs_error=1.0562707e-07 at_index=0\nvalidation=pass device=cuda\n",
+      "stderr": ""
+    },
+    "parallel_torch": {
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "logits max_abs_error=4.7673703e-08 at_index=10\nloss max_abs_error=1.0562707e-07 at_index=0\nvalidation=pass device=cuda batch_size=512\n",
+      "stderr": ""
+    },
+    "serial_cpp": {
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "logits max_abs_error=4.7673703e-08 at_index=10\nloss max_abs_error=1.0562707e-07 at_index=0\nvalidation=pass\n",
+      "stderr": ""
+    },
+    "parallel_cpp": {
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "logits max_abs_error=4.7673703e-08 at_index=10\nloss max_abs_error=1.0562699e-07 at_index=0\nvalidation=pass\n",
+      "stderr": ""
+    }
+  },
+  "benchmarks": [
+    {
+      "method": "serial_python",
+      "preset": "small",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 200
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=small requested_steps=200 steps=200 last_doc=alana loss=2.833525 forward_pass_seconds_cumulative=44.77053058 total_program_seconds=44.81507031\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "small",
+        "requested_steps": "200",
+        "steps": "200",
+        "last_doc": "alana",
+        "loss": "2.833525",
+        "forward_pass_seconds_cumulative": "44.77053058",
+        "total_program_seconds": "44.81507031"
+      }
+    },
+    {
+      "method": "serial_torch",
+      "preset": "small",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 200
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=serial_torch device=cuda preset=small requested_steps=200 steps=200 last_doc=alana loss=2.83352530 mean_loss=3.41544293 forward_pass_seconds_cumulative=0.35895512 total_program_seconds=1.04850320\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "serial_torch",
+        "device": "cuda",
+        "preset": "small",
+        "requested_steps": "200",
+        "steps": "200",
+        "last_doc": "alana",
+        "loss": "2.83352530",
+        "mean_loss": "3.41544293",
+        "forward_pass_seconds_cumulative": "0.35895512",
+        "total_program_seconds": "1.04850320"
+      }
+    },
+    {
+      "method": "parallel_torch",
+      "preset": "small",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 200
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=parallel_torch device=cuda preset=small requested_steps=200 steps=200 batch_size=512 batches=7 last_doc=alana loss=3.35789376 mean_loss=3.41544293 forward_pass_seconds_cumulative=0.22838973 total_program_seconds=0.89522438\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "parallel_torch",
+        "device": "cuda",
+        "preset": "small",
+        "requested_steps": "200",
+        "steps": "200",
+        "batch_size": "512",
+        "batches": "7",
+        "last_doc": "alana",
+        "loss": "3.35789376",
+        "mean_loss": "3.41544293",
+        "forward_pass_seconds_cumulative": "0.22838973",
+        "total_program_seconds": "0.89522438"
+      }
+    },
+    {
+      "method": "serial_cpp",
+      "preset": "small",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 200
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=small requested_steps=200 steps=200 last_doc=alana loss=3.922951 forward_pass_seconds_cumulative=0.050798098 total_program_seconds=0.059715761\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "small",
+        "requested_steps": "200",
+        "steps": "200",
+        "last_doc": "alana",
+        "loss": "3.922951",
+        "forward_pass_seconds_cumulative": "0.050798098",
+        "total_program_seconds": "0.059715761"
+      }
+    },
+    {
+      "method": "parallel_cpp",
+      "preset": "small",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 200
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=small requested_steps=200 steps=200 batch_size=512 batches=7 last_doc=alana loss=3.6186308 mean_loss=3.6513599 forward_pass_seconds_cumulative=0.076375789 total_program_seconds=0.17403344 benchmark_status=forward_cuda\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "small",
+        "requested_steps": "200",
+        "steps": "200",
+        "batch_size": "512",
+        "batches": "7",
+        "last_doc": "alana",
+        "loss": "3.6186308",
+        "mean_loss": "3.6513599",
+        "forward_pass_seconds_cumulative": "0.076375789",
+        "total_program_seconds": "0.17403344",
+        "benchmark_status": "forward_cuda"
+      }
+    },
+    {
+      "method": "serial_python",
+      "preset": "medium",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=medium requested_steps=1000 steps=1000 last_doc=maliah loss=4.754989 forward_pass_seconds_cumulative=1715.76303980 total_program_seconds=1716.10898199\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "medium",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "last_doc": "maliah",
+        "loss": "4.754989",
+        "forward_pass_seconds_cumulative": "1715.76303980",
+        "total_program_seconds": "1716.10898199"
+      }
+    },
+    {
+      "method": "serial_torch",
+      "preset": "medium",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=serial_torch device=cuda preset=medium requested_steps=1000 steps=1000 last_doc=maliah loss=4.75498915 mean_loss=4.95458872 forward_pass_seconds_cumulative=1.35563161 total_program_seconds=2.27811868\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "serial_torch",
+        "device": "cuda",
+        "preset": "medium",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "last_doc": "maliah",
+        "loss": "4.75498915",
+        "mean_loss": "4.95458872",
+        "forward_pass_seconds_cumulative": "1.35563161",
+        "total_program_seconds": "2.27811868"
+      }
+    },
+    {
+      "method": "parallel_torch",
+      "preset": "medium",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=parallel_torch device=cuda preset=medium requested_steps=1000 steps=1000 batch_size=512 batches=8 last_doc=maliah loss=4.93115149 mean_loss=4.95458872 forward_pass_seconds_cumulative=0.24961617 total_program_seconds=1.07487535\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "parallel_torch",
+        "device": "cuda",
+        "preset": "medium",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "batch_size": "512",
+        "batches": "8",
+        "last_doc": "maliah",
+        "loss": "4.93115149",
+        "mean_loss": "4.95458872",
+        "forward_pass_seconds_cumulative": "0.24961617",
+        "total_program_seconds": "1.07487535"
+      }
+    },
+    {
+      "method": "serial_cpp",
+      "preset": "medium",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=medium requested_steps=1000 steps=1000 last_doc=maliah loss=3.8711758 forward_pass_seconds_cumulative=2.1236676 total_program_seconds=2.1531506\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "medium",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "last_doc": "maliah",
+        "loss": "3.8711758",
+        "forward_pass_seconds_cumulative": "2.1236676",
+        "total_program_seconds": "2.1531506"
+      }
+    },
+    {
+      "method": "parallel_cpp",
+      "preset": "medium",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=medium requested_steps=1000 steps=1000 batch_size=512 batches=8 last_doc=maliah loss=4.8756553 mean_loss=4.8585716 forward_pass_seconds_cumulative=0.5839552 total_program_seconds=0.71050933 benchmark_status=forward_cuda\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "medium",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "batch_size": "512",
+        "batches": "8",
+        "last_doc": "maliah",
+        "loss": "4.8756553",
+        "mean_loss": "4.8585716",
+        "forward_pass_seconds_cumulative": "0.5839552",
+        "total_program_seconds": "0.71050933",
+        "benchmark_status": "forward_cuda"
+      }
+    },
+    {
+      "method": "serial_python",
+      "preset": "large",
+      "preset_details": {
+        "n_layer": 4,
+        "n_embd": 256,
+        "block_size": 128,
+        "n_head": 8,
+        "steps": 2500
+      },
+      "status": "skipped",
+      "reason": "preset disabled for method"
+    },
+    {
+      "method": "serial_torch",
+      "preset": "large",
+      "preset_details": {
+        "n_layer": 4,
+        "n_embd": 256,
+        "block_size": 128,
+        "n_head": 8,
+        "steps": 2500
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=serial_torch device=cuda preset=large requested_steps=2500 steps=2500 last_doc=hendrix loss=14.21135342 mean_loss=14.36467639 forward_pass_seconds_cumulative=6.21968723 total_program_seconds=8.39896451\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "serial_torch",
+        "device": "cuda",
+        "preset": "large",
+        "requested_steps": "2500",
+        "steps": "2500",
+        "last_doc": "hendrix",
+        "loss": "14.21135342",
+        "mean_loss": "14.36467639",
+        "forward_pass_seconds_cumulative": "6.21968723",
+        "total_program_seconds": "8.39896451"
+      }
+    },
+    {
+      "method": "parallel_torch",
+      "preset": "large",
+      "preset_details": {
+        "n_layer": 4,
+        "n_embd": 256,
+        "block_size": 128,
+        "n_head": 8,
+        "steps": 2500
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=parallel_torch device=cuda preset=large requested_steps=2500 steps=2500 batch_size=512 batches=11 last_doc=hendrix loss=13.96667312 mean_loss=14.36467639 forward_pass_seconds_cumulative=0.54483834 total_program_seconds=2.59851421\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "parallel_torch",
+        "device": "cuda",
+        "preset": "large",
+        "requested_steps": "2500",
+        "steps": "2500",
+        "batch_size": "512",
+        "batches": "11",
+        "last_doc": "hendrix",
+        "loss": "13.96667312",
+        "mean_loss": "14.36467639",
+        "forward_pass_seconds_cumulative": "0.54483834",
+        "total_program_seconds": "2.59851421"
+      }
+    },
+    {
+      "method": "serial_cpp",
+      "preset": "large",
+      "preset_details": {
+        "n_layer": 4,
+        "n_embd": 256,
+        "block_size": 128,
+        "n_head": 8,
+        "steps": 2500
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=large requested_steps=2500 steps=2500 last_doc=hendrix loss=12.61975 forward_pass_seconds_cumulative=49.717588 total_program_seconds=49.851581\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "large",
+        "requested_steps": "2500",
+        "steps": "2500",
+        "last_doc": "hendrix",
+        "loss": "12.61975",
+        "forward_pass_seconds_cumulative": "49.717588",
+        "total_program_seconds": "49.851581"
+      }
+    },
+    {
+      "method": "parallel_cpp",
+      "preset": "large",
+      "preset_details": {
+        "n_layer": 4,
+        "n_embd": 256,
+        "block_size": 128,
+        "n_head": 8,
+        "steps": 2500
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=large requested_steps=2500 steps=2500 batch_size=512 batches=11 last_doc=hendrix loss=11.389353 mean_loss=11.363794 forward_pass_seconds_cumulative=5.1533308 total_program_seconds=5.3960315 benchmark_status=forward_cuda\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "large",
+        "requested_steps": "2500",
+        "steps": "2500",
+        "batch_size": "512",
+        "batches": "11",
+        "last_doc": "hendrix",
+        "loss": "11.389353",
+        "mean_loss": "11.363794",
+        "forward_pass_seconds_cumulative": "5.1533308",
+        "total_program_seconds": "5.3960315",
+        "benchmark_status": "forward_cuda"
+      }
+    },
+    {
+      "method": "serial_python",
+      "preset": "very-large",
+      "preset_details": {
+        "n_layer": 6,
+        "n_embd": 384,
+        "block_size": 128,
+        "n_head": 12,
+        "steps": 5000
+      },
+      "status": "skipped",
+      "reason": "preset disabled for method"
+    },
+    {
+      "method": "serial_torch",
+      "preset": "very-large",
+      "preset_details": {
+        "n_layer": 6,
+        "n_embd": 384,
+        "block_size": 128,
+        "n_head": 12,
+        "steps": 5000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=serial_torch device=cuda preset=very-large requested_steps=5000 steps=5000 last_doc=delyla loss=34.56052584 mean_loss=29.35316480 forward_pass_seconds_cumulative=21.75186297 total_program_seconds=27.36656987\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "serial_torch",
+        "device": "cuda",
+        "preset": "very-large",
+        "requested_steps": "5000",
+        "steps": "5000",
+        "last_doc": "delyla",
+        "loss": "34.56052584",
+        "mean_loss": "29.35316480",
+        "forward_pass_seconds_cumulative": "21.75186297",
+        "total_program_seconds": "27.36656987"
+      }
+    },
+    {
+      "method": "parallel_torch",
+      "preset": "very-large",
+      "preset_details": {
+        "n_layer": 6,
+        "n_embd": 384,
+        "block_size": 128,
+        "n_head": 12,
+        "steps": 5000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=parallel_torch device=cuda preset=very-large requested_steps=5000 steps=5000 batch_size=512 batches=19 last_doc=delyla loss=31.15074880 mean_loss=29.35316480 forward_pass_seconds_cumulative=1.89644049 total_program_seconds=7.26844744\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "parallel_torch",
+        "device": "cuda",
+        "preset": "very-large",
+        "requested_steps": "5000",
+        "steps": "5000",
+        "batch_size": "512",
+        "batches": "19",
+        "last_doc": "delyla",
+        "loss": "31.15074880",
+        "mean_loss": "29.35316480",
+        "forward_pass_seconds_cumulative": "1.89644049",
+        "total_program_seconds": "7.26844744"
+      }
+    },
+    {
+      "method": "serial_cpp",
+      "preset": "very-large",
+      "preset_details": {
+        "n_layer": 6,
+        "n_embd": 384,
+        "block_size": 128,
+        "n_head": 12,
+        "steps": 5000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=very-large requested_steps=5000 steps=5000 last_doc=delyla loss=39.480067 forward_pass_seconds_cumulative=345.03019 total_program_seconds=345.44723\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "very-large",
+        "requested_steps": "5000",
+        "steps": "5000",
+        "last_doc": "delyla",
+        "loss": "39.480067",
+        "forward_pass_seconds_cumulative": "345.03019",
+        "total_program_seconds": "345.44723"
+      }
+    },
+    {
+      "method": "parallel_cpp",
+      "preset": "very-large",
+      "preset_details": {
+        "n_layer": 6,
+        "n_embd": 384,
+        "block_size": 128,
+        "n_head": 12,
+        "steps": 5000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=very-large requested_steps=5000 steps=5000 batch_size=512 batches=19 last_doc=delyla loss=27.808177 mean_loss=29.604805 forward_pass_seconds_cumulative=28.124536 total_program_seconds=28.656277 benchmark_status=forward_cuda\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "very-large",
+        "requested_steps": "5000",
+        "steps": "5000",
+        "batch_size": "512",
+        "batches": "19",
+        "last_doc": "delyla",
+        "loss": "27.808177",
+        "mean_loss": "29.604805",
+        "forward_pass_seconds_cumulative": "28.124536",
+        "total_program_seconds": "28.656277",
+        "benchmark_status": "forward_cuda"
+      }
+    },
+    {
+      "method": "serial_python",
+      "preset": "extra-large",
+      "preset_details": {
+        "n_layer": 8,
+        "n_embd": 512,
+        "block_size": 256,
+        "n_head": 16,
+        "steps": 10000
+      },
+      "status": "skipped",
+      "reason": "preset disabled for method"
+    },
+    {
+      "method": "serial_torch",
+      "preset": "extra-large",
+      "preset_details": {
+        "n_layer": 8,
+        "n_embd": 512,
+        "block_size": 256,
+        "n_head": 16,
+        "steps": 10000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=serial_torch device=cuda preset=extra-large requested_steps=10000 steps=10000 last_doc=greisy loss=71.25014407 mean_loss=55.89729134 forward_pass_seconds_cumulative=86.57149476 total_program_seconds=99.01055024\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "serial_torch",
+        "device": "cuda",
+        "preset": "extra-large",
+        "requested_steps": "10000",
+        "steps": "10000",
+        "last_doc": "greisy",
+        "loss": "71.25014407",
+        "mean_loss": "55.89729134",
+        "forward_pass_seconds_cumulative": "86.57149476",
+        "total_program_seconds": "99.01055024"
+      }
+    },
+    {
+      "method": "parallel_torch",
+      "preset": "extra-large",
+      "preset_details": {
+        "n_layer": 8,
+        "n_embd": 512,
+        "block_size": 256,
+        "n_head": 16,
+        "steps": 10000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=parallel_torch device=cuda preset=extra-large requested_steps=10000 steps=10000 batch_size=512 batches=28 last_doc=greisy loss=51.45076366 mean_loss=55.89729134 forward_pass_seconds_cumulative=8.27415096 total_program_seconds=20.09386802\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "parallel_torch",
+        "device": "cuda",
+        "preset": "extra-large",
+        "requested_steps": "10000",
+        "steps": "10000",
+        "batch_size": "512",
+        "batches": "28",
+        "last_doc": "greisy",
+        "loss": "51.45076366",
+        "mean_loss": "55.89729134",
+        "forward_pass_seconds_cumulative": "8.27415096",
+        "total_program_seconds": "20.09386802"
+      }
+    },
+    {
+      "method": "serial_cpp",
+      "preset": "extra-large",
+      "preset_details": {
+        "n_layer": 8,
+        "n_embd": 512,
+        "block_size": 256,
+        "n_head": 16,
+        "steps": 10000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=extra-large requested_steps=10000 steps=10000 last_doc=greisy loss=58.057352 forward_pass_seconds_cumulative=1680.5228 total_program_seconds=1681.4897\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "extra-large",
+        "requested_steps": "10000",
+        "steps": "10000",
+        "last_doc": "greisy",
+        "loss": "58.057352",
+        "forward_pass_seconds_cumulative": "1680.5228",
+        "total_program_seconds": "1681.4897"
+      }
+    },
+    {
+      "method": "parallel_cpp",
+      "preset": "extra-large",
+      "preset_details": {
+        "n_layer": 8,
+        "n_embd": 512,
+        "block_size": 256,
+        "n_head": 16,
+        "steps": 10000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=extra-large requested_steps=10000 steps=10000 batch_size=512 batches=28 last_doc=greisy loss=60.713985 mean_loss=66.604702 forward_pass_seconds_cumulative=108.26689 total_program_seconds=109.36317 benchmark_status=forward_cuda\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "extra-large",
+        "requested_steps": "10000",
+        "steps": "10000",
+        "batch_size": "512",
+        "batches": "28",
+        "last_doc": "greisy",
+        "loss": "60.713985",
+        "mean_loss": "66.604702",
+        "forward_pass_seconds_cumulative": "108.26689",
+        "total_program_seconds": "109.36317",
+        "benchmark_status": "forward_cuda"
+      }
+    },
+    {
+      "method": "serial_python",
+      "preset": "names-1k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 1000
+      },
+      "status": "skipped",
+      "reason": "preset disabled for method"
+    },
+    {
+      "method": "serial_torch",
+      "preset": "names-1k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=serial_torch device=cuda preset=names-1k requested_steps=1000 steps=1000 last_doc=maliah loss=3.18115822 mean_loss=3.39774716 forward_pass_seconds_cumulative=0.92268630 total_program_seconds=1.64394796\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "serial_torch",
+        "device": "cuda",
+        "preset": "names-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "last_doc": "maliah",
+        "loss": "3.18115822",
+        "mean_loss": "3.39774716",
+        "forward_pass_seconds_cumulative": "0.92268630",
+        "total_program_seconds": "1.64394796"
+      }
+    },
+    {
+      "method": "parallel_torch",
+      "preset": "names-1k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=parallel_torch device=cuda preset=names-1k requested_steps=1000 steps=1000 batch_size=512 batches=8 last_doc=maliah loss=3.60817328 mean_loss=3.39774716 forward_pass_seconds_cumulative=0.23371288 total_program_seconds=0.89648435\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "parallel_torch",
+        "device": "cuda",
+        "preset": "names-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "batch_size": "512",
+        "batches": "8",
+        "last_doc": "maliah",
+        "loss": "3.60817328",
+        "mean_loss": "3.39774716",
+        "forward_pass_seconds_cumulative": "0.23371288",
+        "total_program_seconds": "0.89648435"
+      }
+    },
+    {
+      "method": "serial_cpp",
+      "preset": "names-1k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=names-1k requested_steps=1000 steps=1000 last_doc=maliah loss=4.4179276 forward_pass_seconds_cumulative=0.2534706 total_program_seconds=0.26856819\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "names-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "last_doc": "maliah",
+        "loss": "4.4179276",
+        "forward_pass_seconds_cumulative": "0.2534706",
+        "total_program_seconds": "0.26856819"
+      }
+    },
+    {
+      "method": "parallel_cpp",
+      "preset": "names-1k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=names-1k requested_steps=1000 steps=1000 batch_size=512 batches=8 last_doc=maliah loss=3.611803 mean_loss=3.6296043 forward_pass_seconds_cumulative=0.16264084 total_program_seconds=0.26415983 benchmark_status=forward_cuda\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "names-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "batch_size": "512",
+        "batches": "8",
+        "last_doc": "maliah",
+        "loss": "3.611803",
+        "mean_loss": "3.6296043",
+        "forward_pass_seconds_cumulative": "0.16264084",
+        "total_program_seconds": "0.26415983",
+        "benchmark_status": "forward_cuda"
+      }
+    },
+    {
+      "method": "serial_python",
+      "preset": "names-5k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 5000
+      },
+      "status": "skipped",
+      "reason": "preset disabled for method"
+    },
+    {
+      "method": "serial_torch",
+      "preset": "names-5k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 5000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=serial_torch device=cuda preset=names-5k requested_steps=5000 steps=5000 last_doc=delyla loss=3.25083266 mean_loss=3.39099271 forward_pass_seconds_cumulative=3.64609831 total_program_seconds=4.61345402\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "serial_torch",
+        "device": "cuda",
+        "preset": "names-5k",
+        "requested_steps": "5000",
+        "steps": "5000",
+        "last_doc": "delyla",
+        "loss": "3.25083266",
+        "mean_loss": "3.39099271",
+        "forward_pass_seconds_cumulative": "3.64609831",
+        "total_program_seconds": "4.61345402"
+      }
+    },
+    {
+      "method": "parallel_torch",
+      "preset": "names-5k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 5000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=parallel_torch device=cuda preset=names-5k requested_steps=5000 steps=5000 batch_size=512 batches=19 last_doc=delyla loss=3.33388179 mean_loss=3.39099271 forward_pass_seconds_cumulative=0.24535645 total_program_seconds=0.91514763\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "parallel_torch",
+        "device": "cuda",
+        "preset": "names-5k",
+        "requested_steps": "5000",
+        "steps": "5000",
+        "batch_size": "512",
+        "batches": "19",
+        "last_doc": "delyla",
+        "loss": "3.33388179",
+        "mean_loss": "3.39099271",
+        "forward_pass_seconds_cumulative": "0.24535645",
+        "total_program_seconds": "0.91514763"
+      }
+    },
+    {
+      "method": "serial_cpp",
+      "preset": "names-5k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 5000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=names-5k requested_steps=5000 steps=5000 last_doc=delyla loss=3.3925916 forward_pass_seconds_cumulative=1.2654461 total_program_seconds=1.2813353\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "names-5k",
+        "requested_steps": "5000",
+        "steps": "5000",
+        "last_doc": "delyla",
+        "loss": "3.3925916",
+        "forward_pass_seconds_cumulative": "1.2654461",
+        "total_program_seconds": "1.2813353"
+      }
+    },
+    {
+      "method": "parallel_cpp",
+      "preset": "names-5k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 5000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=names-5k requested_steps=5000 steps=5000 batch_size=512 batches=19 last_doc=delyla loss=3.9370341 mean_loss=3.6230177 forward_pass_seconds_cumulative=0.52086963 total_program_seconds=0.62458326 benchmark_status=forward_cuda\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "names-5k",
+        "requested_steps": "5000",
+        "steps": "5000",
+        "batch_size": "512",
+        "batches": "19",
+        "last_doc": "delyla",
+        "loss": "3.9370341",
+        "mean_loss": "3.6230177",
+        "forward_pass_seconds_cumulative": "0.52086963",
+        "total_program_seconds": "0.62458326",
+        "benchmark_status": "forward_cuda"
+      }
+    },
+    {
+      "method": "serial_python",
+      "preset": "names-10k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 10000
+      },
+      "status": "skipped",
+      "reason": "preset disabled for method"
+    },
+    {
+      "method": "serial_torch",
+      "preset": "names-10k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 10000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=serial_torch device=cuda preset=names-10k requested_steps=10000 steps=10000 last_doc=greisy loss=3.31989821 mean_loss=3.39177358 forward_pass_seconds_cumulative=7.04906629 total_program_seconds=8.27415241\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "serial_torch",
+        "device": "cuda",
+        "preset": "names-10k",
+        "requested_steps": "10000",
+        "steps": "10000",
+        "last_doc": "greisy",
+        "loss": "3.31989821",
+        "mean_loss": "3.39177358",
+        "forward_pass_seconds_cumulative": "7.04906629",
+        "total_program_seconds": "8.27415241"
+      }
+    },
+    {
+      "method": "parallel_torch",
+      "preset": "names-10k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 10000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=parallel_torch device=cuda preset=names-10k requested_steps=10000 steps=10000 batch_size=512 batches=28 last_doc=greisy loss=3.64030581 mean_loss=3.39177358 forward_pass_seconds_cumulative=0.26632845 total_program_seconds=0.93968650\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "parallel_torch",
+        "device": "cuda",
+        "preset": "names-10k",
+        "requested_steps": "10000",
+        "steps": "10000",
+        "batch_size": "512",
+        "batches": "28",
+        "last_doc": "greisy",
+        "loss": "3.64030581",
+        "mean_loss": "3.39177358",
+        "forward_pass_seconds_cumulative": "0.26632845",
+        "total_program_seconds": "0.93968650"
+      }
+    },
+    {
+      "method": "serial_cpp",
+      "preset": "names-10k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 10000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=names-10k requested_steps=10000 steps=10000 last_doc=greisy loss=4.2318624 forward_pass_seconds_cumulative=2.5739113 total_program_seconds=2.5910937\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "names-10k",
+        "requested_steps": "10000",
+        "steps": "10000",
+        "last_doc": "greisy",
+        "loss": "4.2318624",
+        "forward_pass_seconds_cumulative": "2.5739113",
+        "total_program_seconds": "2.5910937"
+      }
+    },
+    {
+      "method": "parallel_cpp",
+      "preset": "names-10k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 10000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=names-10k requested_steps=10000 steps=10000 batch_size=512 batches=28 last_doc=greisy loss=3.5861886 mean_loss=3.6276762 forward_pass_seconds_cumulative=0.9912819 total_program_seconds=1.1100497 benchmark_status=forward_cuda\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "names-10k",
+        "requested_steps": "10000",
+        "steps": "10000",
+        "batch_size": "512",
+        "batches": "28",
+        "last_doc": "greisy",
+        "loss": "3.5861886",
+        "mean_loss": "3.6276762",
+        "forward_pass_seconds_cumulative": "0.9912819",
+        "total_program_seconds": "1.1100497",
+        "benchmark_status": "forward_cuda"
+      }
+    },
+    {
+      "method": "serial_python",
+      "preset": "names-20k",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 20000
+      },
+      "status": "skipped",
+      "reason": "preset disabled for method"
+    },
+    {
+      "method": "serial_torch",
+      "preset": "names-20k",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 20000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=serial_torch device=cuda preset=names-20k requested_steps=20000 steps=20000 last_doc=kolson loss=4.55819967 mean_loss=5.05340918 forward_pass_seconds_cumulative=22.89546788 total_program_seconds=24.85272590\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "serial_torch",
+        "device": "cuda",
+        "preset": "names-20k",
+        "requested_steps": "20000",
+        "steps": "20000",
+        "last_doc": "kolson",
+        "loss": "4.55819967",
+        "mean_loss": "5.05340918",
+        "forward_pass_seconds_cumulative": "22.89546788",
+        "total_program_seconds": "24.85272590"
+      }
+    },
+    {
+      "method": "parallel_torch",
+      "preset": "names-20k",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 20000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=parallel_torch device=cuda preset=names-20k requested_steps=20000 steps=20000 batch_size=512 batches=48 last_doc=kolson loss=5.06605919 mean_loss=5.05340918 forward_pass_seconds_cumulative=0.62405035 total_program_seconds=1.46605910\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "parallel_torch",
+        "device": "cuda",
+        "preset": "names-20k",
+        "requested_steps": "20000",
+        "steps": "20000",
+        "batch_size": "512",
+        "batches": "48",
+        "last_doc": "kolson",
+        "loss": "5.06605919",
+        "mean_loss": "5.05340918",
+        "forward_pass_seconds_cumulative": "0.62405035",
+        "total_program_seconds": "1.46605910"
+      }
+    },
+    {
+      "method": "serial_cpp",
+      "preset": "names-20k",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 20000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=names-20k requested_steps=20000 steps=20000 last_doc=kolson loss=4.3194808 forward_pass_seconds_cumulative=43.703056 total_program_seconds=43.736363\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "names-20k",
+        "requested_steps": "20000",
+        "steps": "20000",
+        "last_doc": "kolson",
+        "loss": "4.3194808",
+        "forward_pass_seconds_cumulative": "43.703056",
+        "total_program_seconds": "43.736363"
+      }
+    },
+    {
+      "method": "parallel_cpp",
+      "preset": "names-20k",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 20000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=names-20k requested_steps=20000 steps=20000 batch_size=512 batches=48 last_doc=kolson loss=4.7862894 mean_loss=4.8648089 forward_pass_seconds_cumulative=4.5355598 total_program_seconds=4.6657035 benchmark_status=forward_cuda\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "names-20k",
+        "requested_steps": "20000",
+        "steps": "20000",
+        "batch_size": "512",
+        "batches": "48",
+        "last_doc": "kolson",
+        "loss": "4.7862894",
+        "mean_loss": "4.8648089",
+        "forward_pass_seconds_cumulative": "4.5355598",
+        "total_program_seconds": "4.6657035",
+        "benchmark_status": "forward_cuda"
+      }
+    },
+    {
+      "method": "serial_python",
+      "preset": "names-30k",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 30000
+      },
+      "status": "skipped",
+      "reason": "preset disabled for method"
+    },
+    {
+      "method": "serial_torch",
+      "preset": "names-30k",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 30000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=serial_torch device=cuda preset=names-30k requested_steps=30000 steps=30000 last_doc=vaiden loss=4.64957534 mean_loss=5.03610058 forward_pass_seconds_cumulative=33.89137420 total_program_seconds=36.41519684\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "serial_torch",
+        "device": "cuda",
+        "preset": "names-30k",
+        "requested_steps": "30000",
+        "steps": "30000",
+        "last_doc": "vaiden",
+        "loss": "4.64957534",
+        "mean_loss": "5.03610058",
+        "forward_pass_seconds_cumulative": "33.89137420",
+        "total_program_seconds": "36.41519684"
+      }
+    },
+    {
+      "method": "parallel_torch",
+      "preset": "names-30k",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 30000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=parallel_torch device=cuda preset=names-30k requested_steps=30000 steps=30000 batch_size=512 batches=68 last_doc=vaiden loss=4.83833022 mean_loss=5.03610058 forward_pass_seconds_cumulative=0.78028211 total_program_seconds=1.62197584\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "parallel_torch",
+        "device": "cuda",
+        "preset": "names-30k",
+        "requested_steps": "30000",
+        "steps": "30000",
+        "batch_size": "512",
+        "batches": "68",
+        "last_doc": "vaiden",
+        "loss": "4.83833022",
+        "mean_loss": "5.03610058",
+        "forward_pass_seconds_cumulative": "0.78028211",
+        "total_program_seconds": "1.62197584"
+      }
+    },
+    {
+      "method": "serial_cpp",
+      "preset": "names-30k",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 30000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=names-30k requested_steps=30000 steps=30000 last_doc=vaiden loss=4.5310949 forward_pass_seconds_cumulative=64.830756 total_program_seconds=64.866076\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "names-30k",
+        "requested_steps": "30000",
+        "steps": "30000",
+        "last_doc": "vaiden",
+        "loss": "4.5310949",
+        "forward_pass_seconds_cumulative": "64.830756",
+        "total_program_seconds": "64.866076"
+      }
+    },
+    {
+      "method": "parallel_cpp",
+      "preset": "names-30k",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 30000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=names-30k requested_steps=30000 steps=30000 batch_size=512 batches=68 last_doc=vaiden loss=4.6498544 mean_loss=4.8340533 forward_pass_seconds_cumulative=6.4997608 total_program_seconds=6.6305449 benchmark_status=forward_cuda\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "names-30k",
+        "requested_steps": "30000",
+        "steps": "30000",
+        "batch_size": "512",
+        "batches": "68",
+        "last_doc": "vaiden",
+        "loss": "4.6498544",
+        "mean_loss": "4.8340533",
+        "forward_pass_seconds_cumulative": "6.4997608",
+        "total_program_seconds": "6.6305449",
+        "benchmark_status": "forward_cuda"
+      }
+    },
+    {
+      "method": "serial_python",
+      "preset": "model-small-1k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 1000
+      },
+      "status": "skipped",
+      "reason": "preset disabled for method"
+    },
+    {
+      "method": "serial_torch",
+      "preset": "model-small-1k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=serial_torch device=cuda preset=model-small-1k requested_steps=1000 steps=1000 last_doc=maliah loss=3.18115822 mean_loss=3.39774716 forward_pass_seconds_cumulative=0.91592410 total_program_seconds=1.63420884\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "serial_torch",
+        "device": "cuda",
+        "preset": "model-small-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "last_doc": "maliah",
+        "loss": "3.18115822",
+        "mean_loss": "3.39774716",
+        "forward_pass_seconds_cumulative": "0.91592410",
+        "total_program_seconds": "1.63420884"
+      }
+    },
+    {
+      "method": "parallel_torch",
+      "preset": "model-small-1k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=parallel_torch device=cuda preset=model-small-1k requested_steps=1000 steps=1000 batch_size=512 batches=8 last_doc=maliah loss=3.60817328 mean_loss=3.39774716 forward_pass_seconds_cumulative=0.23136107 total_program_seconds=0.89981064\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "parallel_torch",
+        "device": "cuda",
+        "preset": "model-small-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "batch_size": "512",
+        "batches": "8",
+        "last_doc": "maliah",
+        "loss": "3.60817328",
+        "mean_loss": "3.39774716",
+        "forward_pass_seconds_cumulative": "0.23136107",
+        "total_program_seconds": "0.89981064"
+      }
+    },
+    {
+      "method": "serial_cpp",
+      "preset": "model-small-1k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=model-small-1k requested_steps=1000 steps=1000 last_doc=maliah loss=4.4179276 forward_pass_seconds_cumulative=0.25270081 total_program_seconds=0.2684524\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "model-small-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "last_doc": "maliah",
+        "loss": "4.4179276",
+        "forward_pass_seconds_cumulative": "0.25270081",
+        "total_program_seconds": "0.2684524"
+      }
+    },
+    {
+      "method": "parallel_cpp",
+      "preset": "model-small-1k",
+      "preset_details": {
+        "n_layer": 1,
+        "n_embd": 64,
+        "block_size": 64,
+        "n_head": 4,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=model-small-1k requested_steps=1000 steps=1000 batch_size=512 batches=8 last_doc=maliah loss=3.611803 mean_loss=3.6296043 forward_pass_seconds_cumulative=0.17530697 total_program_seconds=0.27852667 benchmark_status=forward_cuda\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "model-small-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "batch_size": "512",
+        "batches": "8",
+        "last_doc": "maliah",
+        "loss": "3.611803",
+        "mean_loss": "3.6296043",
+        "forward_pass_seconds_cumulative": "0.17530697",
+        "total_program_seconds": "0.27852667",
+        "benchmark_status": "forward_cuda"
+      }
+    },
+    {
+      "method": "serial_python",
+      "preset": "model-medium-1k",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 1000
+      },
+      "status": "skipped",
+      "reason": "preset disabled for method"
+    },
+    {
+      "method": "serial_torch",
+      "preset": "model-medium-1k",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=serial_torch device=cuda preset=model-medium-1k requested_steps=1000 steps=1000 last_doc=maliah loss=4.75498915 mean_loss=4.95458872 forward_pass_seconds_cumulative=1.34033786 total_program_seconds=2.23212202\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "serial_torch",
+        "device": "cuda",
+        "preset": "model-medium-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "last_doc": "maliah",
+        "loss": "4.75498915",
+        "mean_loss": "4.95458872",
+        "forward_pass_seconds_cumulative": "1.34033786",
+        "total_program_seconds": "2.23212202"
+      }
+    },
+    {
+      "method": "parallel_torch",
+      "preset": "model-medium-1k",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=parallel_torch device=cuda preset=model-medium-1k requested_steps=1000 steps=1000 batch_size=512 batches=8 last_doc=maliah loss=4.93115149 mean_loss=4.95458872 forward_pass_seconds_cumulative=0.25132871 total_program_seconds=1.06369536\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "parallel_torch",
+        "device": "cuda",
+        "preset": "model-medium-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "batch_size": "512",
+        "batches": "8",
+        "last_doc": "maliah",
+        "loss": "4.93115149",
+        "mean_loss": "4.95458872",
+        "forward_pass_seconds_cumulative": "0.25132871",
+        "total_program_seconds": "1.06369536"
+      }
+    },
+    {
+      "method": "serial_cpp",
+      "preset": "model-medium-1k",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=model-medium-1k requested_steps=1000 steps=1000 last_doc=maliah loss=3.8711758 forward_pass_seconds_cumulative=2.1226762 total_program_seconds=2.1536985\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "model-medium-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "last_doc": "maliah",
+        "loss": "3.8711758",
+        "forward_pass_seconds_cumulative": "2.1226762",
+        "total_program_seconds": "2.1536985"
+      }
+    },
+    {
+      "method": "parallel_cpp",
+      "preset": "model-medium-1k",
+      "preset_details": {
+        "n_layer": 2,
+        "n_embd": 128,
+        "block_size": 64,
+        "n_head": 8,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=model-medium-1k requested_steps=1000 steps=1000 batch_size=512 batches=8 last_doc=maliah loss=4.8756553 mean_loss=4.8585716 forward_pass_seconds_cumulative=0.56508232 total_program_seconds=0.69381134 benchmark_status=forward_cuda\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "model-medium-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "batch_size": "512",
+        "batches": "8",
+        "last_doc": "maliah",
+        "loss": "4.8756553",
+        "mean_loss": "4.8585716",
+        "forward_pass_seconds_cumulative": "0.56508232",
+        "total_program_seconds": "0.69381134",
+        "benchmark_status": "forward_cuda"
+      }
+    },
+    {
+      "method": "serial_python",
+      "preset": "model-large-1k",
+      "preset_details": {
+        "n_layer": 4,
+        "n_embd": 256,
+        "block_size": 128,
+        "n_head": 8,
+        "steps": 1000
+      },
+      "status": "skipped",
+      "reason": "preset disabled for method"
+    },
+    {
+      "method": "serial_torch",
+      "preset": "model-large-1k",
+      "preset_details": {
+        "n_layer": 4,
+        "n_embd": 256,
+        "block_size": 128,
+        "n_head": 8,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=serial_torch device=cuda preset=model-large-1k requested_steps=1000 steps=1000 last_doc=maliah loss=14.58742892 mean_loss=14.39470987 forward_pass_seconds_cumulative=2.66341800 total_program_seconds=4.75170867\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "serial_torch",
+        "device": "cuda",
+        "preset": "model-large-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "last_doc": "maliah",
+        "loss": "14.58742892",
+        "mean_loss": "14.39470987",
+        "forward_pass_seconds_cumulative": "2.66341800",
+        "total_program_seconds": "4.75170867"
+      }
+    },
+    {
+      "method": "parallel_torch",
+      "preset": "model-large-1k",
+      "preset_details": {
+        "n_layer": 4,
+        "n_embd": 256,
+        "block_size": 128,
+        "n_head": 8,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=parallel_torch device=cuda preset=model-large-1k requested_steps=1000 steps=1000 batch_size=512 batches=8 last_doc=maliah loss=13.13953680 mean_loss=14.39470987 forward_pass_seconds_cumulative=0.37990063 total_program_seconds=2.41943806\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "parallel_torch",
+        "device": "cuda",
+        "preset": "model-large-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "batch_size": "512",
+        "batches": "8",
+        "last_doc": "maliah",
+        "loss": "13.13953680",
+        "mean_loss": "14.39470987",
+        "forward_pass_seconds_cumulative": "0.37990063",
+        "total_program_seconds": "2.41943806"
+      }
+    },
+    {
+      "method": "serial_cpp",
+      "preset": "model-large-1k",
+      "preset_details": {
+        "n_layer": 4,
+        "n_embd": 256,
+        "block_size": 128,
+        "n_head": 8,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=model-large-1k requested_steps=1000 steps=1000 last_doc=maliah loss=9.5742069 forward_pass_seconds_cumulative=19.966283 total_program_seconds=20.099654\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "model-large-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "last_doc": "maliah",
+        "loss": "9.5742069",
+        "forward_pass_seconds_cumulative": "19.966283",
+        "total_program_seconds": "20.099654"
+      }
+    },
+    {
+      "method": "parallel_cpp",
+      "preset": "model-large-1k",
+      "preset_details": {
+        "n_layer": 4,
+        "n_embd": 256,
+        "block_size": 128,
+        "n_head": 8,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=model-large-1k requested_steps=1000 steps=1000 batch_size=512 batches=8 last_doc=maliah loss=9.6840826 mean_loss=11.317309 forward_pass_seconds_cumulative=3.5016453 total_program_seconds=3.7390259 benchmark_status=forward_cuda\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "model-large-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "batch_size": "512",
+        "batches": "8",
+        "last_doc": "maliah",
+        "loss": "9.6840826",
+        "mean_loss": "11.317309",
+        "forward_pass_seconds_cumulative": "3.5016453",
+        "total_program_seconds": "3.7390259",
+        "benchmark_status": "forward_cuda"
+      }
+    },
+    {
+      "method": "serial_python",
+      "preset": "model-very-large-1k",
+      "preset_details": {
+        "n_layer": 6,
+        "n_embd": 384,
+        "block_size": 128,
+        "n_head": 12,
+        "steps": 1000
+      },
+      "status": "skipped",
+      "reason": "preset disabled for method"
+    },
+    {
+      "method": "serial_torch",
+      "preset": "model-very-large-1k",
+      "preset_details": {
+        "n_layer": 6,
+        "n_embd": 384,
+        "block_size": 128,
+        "n_head": 12,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=serial_torch device=cuda preset=model-very-large-1k requested_steps=1000 steps=1000 last_doc=maliah loss=32.89891476 mean_loss=29.31891125 forward_pass_seconds_cumulative=4.57573639 total_program_seconds=9.98335424\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "serial_torch",
+        "device": "cuda",
+        "preset": "model-very-large-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "last_doc": "maliah",
+        "loss": "32.89891476",
+        "mean_loss": "29.31891125",
+        "forward_pass_seconds_cumulative": "4.57573639",
+        "total_program_seconds": "9.98335424"
+      }
+    },
+    {
+      "method": "parallel_torch",
+      "preset": "model-very-large-1k",
+      "preset_details": {
+        "n_layer": 6,
+        "n_embd": 384,
+        "block_size": 128,
+        "n_head": 12,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=parallel_torch device=cuda preset=model-very-large-1k requested_steps=1000 steps=1000 batch_size=512 batches=8 last_doc=maliah loss=29.23159522 mean_loss=29.31891125 forward_pass_seconds_cumulative=0.61904000 total_program_seconds=5.97317054\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "parallel_torch",
+        "device": "cuda",
+        "preset": "model-very-large-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "batch_size": "512",
+        "batches": "8",
+        "last_doc": "maliah",
+        "loss": "29.23159522",
+        "mean_loss": "29.31891125",
+        "forward_pass_seconds_cumulative": "0.61904000",
+        "total_program_seconds": "5.97317054"
+      }
+    },
+    {
+      "method": "serial_cpp",
+      "preset": "model-very-large-1k",
+      "preset_details": {
+        "n_layer": 6,
+        "n_embd": 384,
+        "block_size": 128,
+        "n_head": 12,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=model-very-large-1k requested_steps=1000 steps=1000 last_doc=maliah loss=34.194595 forward_pass_seconds_cumulative=67.852056 total_program_seconds=68.261525\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "model-very-large-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "last_doc": "maliah",
+        "loss": "34.194595",
+        "forward_pass_seconds_cumulative": "67.852056",
+        "total_program_seconds": "68.261525"
+      }
+    },
+    {
+      "method": "parallel_cpp",
+      "preset": "model-very-large-1k",
+      "preset_details": {
+        "n_layer": 6,
+        "n_embd": 384,
+        "block_size": 128,
+        "n_head": 12,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=model-very-large-1k requested_steps=1000 steps=1000 batch_size=512 batches=8 last_doc=maliah loss=30.769258 mean_loss=29.852757 forward_pass_seconds_cumulative=12.114866 total_program_seconds=12.642357 benchmark_status=forward_cuda\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "model-very-large-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "batch_size": "512",
+        "batches": "8",
+        "last_doc": "maliah",
+        "loss": "30.769258",
+        "mean_loss": "29.852757",
+        "forward_pass_seconds_cumulative": "12.114866",
+        "total_program_seconds": "12.642357",
+        "benchmark_status": "forward_cuda"
+      }
+    },
+    {
+      "method": "serial_python",
+      "preset": "model-extra-large-1k",
+      "preset_details": {
+        "n_layer": 8,
+        "n_embd": 512,
+        "block_size": 256,
+        "n_head": 16,
+        "steps": 1000
+      },
+      "status": "skipped",
+      "reason": "preset disabled for method"
+    },
+    {
+      "method": "serial_torch",
+      "preset": "model-extra-large-1k",
+      "preset_details": {
+        "n_layer": 8,
+        "n_embd": 512,
+        "block_size": 256,
+        "n_head": 16,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=serial_torch device=cuda preset=model-extra-large-1k requested_steps=1000 steps=1000 last_doc=maliah loss=49.91659061 mean_loss=56.09005698 forward_pass_seconds_cumulative=8.55614005 total_program_seconds=20.42338331\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "serial_torch",
+        "device": "cuda",
+        "preset": "model-extra-large-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "last_doc": "maliah",
+        "loss": "49.91659061",
+        "mean_loss": "56.09005698",
+        "forward_pass_seconds_cumulative": "8.55614005",
+        "total_program_seconds": "20.42338331"
+      }
+    },
+    {
+      "method": "parallel_torch",
+      "preset": "model-extra-large-1k",
+      "preset_details": {
+        "n_layer": 8,
+        "n_embd": 512,
+        "block_size": 256,
+        "n_head": 16,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark method=parallel_torch device=cuda preset=model-extra-large-1k requested_steps=1000 steps=1000 batch_size=512 batches=8 last_doc=maliah loss=54.53954471 mean_loss=56.09005698 forward_pass_seconds_cumulative=1.03358150 total_program_seconds=12.89671818\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "method": "parallel_torch",
+        "device": "cuda",
+        "preset": "model-extra-large-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "batch_size": "512",
+        "batches": "8",
+        "last_doc": "maliah",
+        "loss": "54.53954471",
+        "mean_loss": "56.09005698",
+        "forward_pass_seconds_cumulative": "1.03358150",
+        "total_program_seconds": "12.89671818"
+      }
+    },
+    {
+      "method": "serial_cpp",
+      "preset": "model-extra-large-1k",
+      "preset_details": {
+        "n_layer": 8,
+        "n_embd": 512,
+        "block_size": 256,
+        "n_head": 16,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=model-extra-large-1k requested_steps=1000 steps=1000 last_doc=maliah loss=65.449346 forward_pass_seconds_cumulative=164.1324 total_program_seconds=165.0822\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "model-extra-large-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "last_doc": "maliah",
+        "loss": "65.449346",
+        "forward_pass_seconds_cumulative": "164.1324",
+        "total_program_seconds": "165.0822"
+      }
+    },
+    {
+      "method": "parallel_cpp",
+      "preset": "model-extra-large-1k",
+      "preset_details": {
+        "n_layer": 8,
+        "n_embd": 512,
+        "block_size": 256,
+        "n_head": 16,
+        "steps": 1000
+      },
+      "status": "pass",
+      "returncode": 0,
+      "stdout": "mode=benchmark preset=model-extra-large-1k requested_steps=1000 steps=1000 batch_size=512 batches=8 last_doc=maliah loss=62.800558 mean_loss=67.798432 forward_pass_seconds_cumulative=26.887019 total_program_seconds=27.967429 benchmark_status=forward_cuda\n",
+      "stderr": "",
+      "parsed": {
+        "mode": "benchmark",
+        "preset": "model-extra-large-1k",
+        "requested_steps": "1000",
+        "steps": "1000",
+        "batch_size": "512",
+        "batches": "8",
+        "last_doc": "maliah",
+        "loss": "62.800558",
+        "mean_loss": "67.798432",
+        "forward_pass_seconds_cumulative": "26.887019",
+        "total_program_seconds": "27.967429",
+        "benchmark_status": "forward_cuda"
+      }
+    }
+  ]
+}

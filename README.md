@@ -83,7 +83,7 @@ Python reference:
 python3 methods/serial_python/serial.py \
   --mode benchmark \
   --dataset training_data/datasets/names.txt \
-  --preset small
+  --preset medium
 ```
 
 Serial PyTorch:
@@ -101,7 +101,7 @@ Batched PyTorch:
 python3 methods/parallel_torch/parallel.py \
   --mode benchmark \
   --dataset training_data/datasets/names.txt \
-  --preset small \
+  --preset large \
   --batch-size 6
 ```
 

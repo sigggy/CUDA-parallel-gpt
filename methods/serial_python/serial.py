@@ -117,7 +117,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description="serial Python benchmark scaffold")
     parser.add_argument("--mode", choices=["dump-fixtures", "validate", "benchmark"], required=True)
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
-    parser.add_argument("--fixture-dir", type=Path, default=DEFAULT_FIXTURE_DIR)
     parser.add_argument("--sample-name", default=DEFAULT_SAMPLE_NAME)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--num-steps", type=int, default=None)
@@ -220,10 +219,10 @@ def run_benchmark(
 def main():
     args = parse_args()
     if args.mode == "dump-fixtures":
-        dump_fixtures(args.dataset, args.fixture_dir, args.sample_name, args.seed)
+        dump_fixtures(args.dataset, DEFAULT_FIXTURE_DIR, args.sample_name, args.seed)
         return
     if args.mode == "validate":
-        validate_fixture(args.fixture_dir, args.seed)
+        validate_fixture(DEFAULT_FIXTURE_DIR, args.seed)
         return
     n_layer = require_positive_int(args.n_layer, "--n-layer")
     n_embd = require_positive_int(args.n_embd, "--n-embd")

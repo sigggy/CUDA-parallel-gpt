@@ -27,7 +27,7 @@ all: $(BUILD_DIR)/serial_cpp $(BUILD_DIR)/parallel_cpp
 profile: $(BUILD_DIR)/serial_cpp_profile
 
 fixtures:
-	$(PYTHON) methods/serial_python/serial.py --mode dump-fixtures --dataset $(DATASET) --fixture-dir $(FIXTURE_DIR) --sample-name $(SAMPLE_NAME)
+	$(PYTHON) methods/serial_python/serial.py --mode dump-fixtures --dataset $(DATASET) --sample-name $(SAMPLE_NAME)
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)

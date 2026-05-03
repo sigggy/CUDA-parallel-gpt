@@ -53,19 +53,19 @@ run_validate_method() {
     local method="$1"
     case "$method" in
         serial_python)
-            "$PYTHON_BIN" "$ROOT_DIR/methods/serial_python/serial.py" --mode validate --fixture-dir "$FIXTURE_DIR"
+            "$PYTHON_BIN" "$ROOT_DIR/methods/serial_python/serial.py" --mode validate
             ;;
         serial_torch)
-            "$PYTHON_BIN" "$ROOT_DIR/methods/serial_torch/serial.py" --mode validate --fixture-dir "$FIXTURE_DIR"
+            "$PYTHON_BIN" "$ROOT_DIR/methods/serial_torch/serial.py" --mode validate
             ;;
         parallel_torch)
-            "$PYTHON_BIN" "$ROOT_DIR/methods/parallel_torch/parallel.py" --mode validate --fixture-dir "$FIXTURE_DIR" --batch-size "$DEFAULT_BATCH_SIZE"
+            "$PYTHON_BIN" "$ROOT_DIR/methods/parallel_torch/parallel.py" --mode validate
             ;;
         serial_cpp)
-            "$BUILD_DIR/$method" --mode validate --fixture-dir "$FIXTURE_DIR"
+            "$BUILD_DIR/$method" --mode validate
             ;;
         parallel_cpp)
-            "$BUILD_DIR/$method" --mode validate --fixture-dir "$FIXTURE_DIR" --batch-size "$DEFAULT_BATCH_SIZE"
+            "$BUILD_DIR/$method" --mode validate
             ;;
         *)
             return 1

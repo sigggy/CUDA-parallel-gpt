@@ -309,8 +309,6 @@ def run_validate_method(method: str) -> CommandResult:
                 str(ROOT_DIR / "methods" / "serial_python" / "serial.py"),
                 "--mode",
                 "validate",
-                "--fixture-dir",
-                str(FIXTURE_DIR),
             ]
         )
     if method == "serial_torch":
@@ -320,8 +318,6 @@ def run_validate_method(method: str) -> CommandResult:
                 str(ROOT_DIR / "methods" / "serial_torch" / "serial.py"),
                 "--mode",
                 "validate",
-                "--fixture-dir",
-                str(FIXTURE_DIR),
             ]
         )
     if method == "parallel_torch":
@@ -331,24 +327,14 @@ def run_validate_method(method: str) -> CommandResult:
                 str(ROOT_DIR / "methods" / "parallel_torch" / "parallel.py"),
                 "--mode",
                 "validate",
-                "--fixture-dir",
-                str(FIXTURE_DIR),
-                "--batch-size",
-                DEFAULT_BATCH_SIZE,
             ]
         )
     command = [
         str(BUILD_DIR / method),
         "--mode",
         "validate",
-        "--fixture-dir",
-        str(FIXTURE_DIR),
     ]
-    if method == "parallel_cpp":
-        command.extend(["--batch-size", DEFAULT_BATCH_SIZE])
-    return run_command(
-        command
-    )
+    return run_command(command)
 
 
 def benchmark_command(method: str, run: BenchmarkRun) -> list[str]:

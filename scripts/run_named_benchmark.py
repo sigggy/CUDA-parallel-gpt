@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+from pathlib import Path
+
+from benchmark_matrix import METHOD_RUN_FILTERS, RUN_BY_LABEL
+
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+BUILD_DIR = ROOT_DIR / "build"
+DATASET = ROOT_DIR / "training_data" / "datasets" / "names.txt"
+METHODS = ("serial_python", "serial_torch", "parallel_torch", "serial_cpp", "parallel_cpp")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="run one benchmark preset for one method")
+    parser.add_argument("method", choices=METHODS)
+    parser.add_argument("preset", choices=sorted(RUN_BY_LABEL))
+    parser.add_argument("--batch-size", type=int, default=512)
+    parser.add_argument("--device", default="auto")
+    return parser.parse_args()
+
+
+def benchmark_command(method: str, preset: str, batch_size: int, device: str) -> list[str]:
+    run = RUN_BY_LABEL[preset]
+    command = [
+        "--mode",
+        "benchmark",
+        "--dataset",
+        str(DATASET),
+        "--label",
+        run.label,
+        "--num-steps",
+        str(run.steps),
+        "--n-layer",
+        str(run.n_layer),
+        "--n-embd",
+        str(run.n_embd),
+        "--block-size",
+        str(run.block_size),
+        "--n-head",
+        str(run.n_head),
+    ]
+    if method in {"serial_torch", "parallel_torch"}:
+        command.extend(["--device", device])
+    if method in {"parallel_torch", "parallel_cpp"}:
+        command.extend(["--batch-size", str(batch_size)])
+    if method.endswith("_cpp"):
+        return [str(BUILD_DIR / method), *command]
+    script_name = "parallel.py" if method == "parallel_torch" else "serial.py"
+    script_dir = "parallel_torch" if method == "parallel_torch" else method
+    return [sys.executable, str(ROOT_DIR / "methods" / script_dir / script_name), *command]
+
+
+def main() -> int:
+    args = parse_args()
+    allowed_presets = METHOD_RUN_FILTERS.get(args.method)
+    if allowed_presets is not None and args.preset not in allowed_presets:
+        print(f"{args.method} does not run preset {args.preset}", file=sys.stderr)
+        return 2
+    completed = subprocess.run(
+        benchmark_command(args.method, args.preset, args.batch_size, args.device),
+        cwd=ROOT_DIR,
+        check=False,
+    )
+    return completed.returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

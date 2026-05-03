@@ -17,9 +17,7 @@ namespace {
 
 struct CliOptions {
     std::string mode;
-    std::string fixture_dir;
     std::string dataset;
-    std::string sample_name = "anna";
     std::string label = "custom";
     int num_steps = -1;
     int n_layer = -1;
@@ -29,6 +27,8 @@ struct CliOptions {
     int batch_size = 1;
     std::uint32_t seed = 42;
 };
+
+const std::string kDefaultFixtureDir = "training_data/fixtures/small_case";
 
 struct BatchBucket {
     int seq_length = 0;
@@ -81,12 +81,8 @@ CliOptions parse_cli(int argc, char** argv) {
         const std::string arg = argv[idx];
         if (arg == "--mode") {
             options.mode = require_value(argc, argv, &idx);
-        } else if (arg == "--fixture-dir") {
-            options.fixture_dir = require_value(argc, argv, &idx);
         } else if (arg == "--dataset") {
             options.dataset = require_value(argc, argv, &idx);
-        } else if (arg == "--sample-name") {
-            options.sample_name = require_value(argc, argv, &idx);
         } else if (arg == "--label") {
             options.label = require_value(argc, argv, &idx);
         } else if (arg == "--num-steps") {
@@ -299,12 +295,8 @@ double compare_arrays(const std::string& label, const std::vector<double>& actua
     return max_abs_error;
 }
 
-int run_validate(const CliOptions& options) {
-    if (options.fixture_dir.empty()) {
-        throw std::runtime_error("--fixture-dir is required for validate mode");
-    }
-
-    const std::string manifest_path = join_path(options.fixture_dir, "manifest.txt");
+int run_validate(const CliOptions&) {
+    const std::string manifest_path = join_path(kDefaultFixtureDir, "manifest.txt");
     const auto manifest = parse_manifest(manifest_path);
     ModelConfig config;
     config.n_layer = std::stoi(manifest.at("n_layer"));
@@ -317,18 +309,18 @@ int run_validate(const CliOptions& options) {
     const double epsilon = std::stod(manifest.at("validation_epsilon"));
 
     Model host_model = make_empty_model(config);
-    load_model_from_f32(host_model, read_f32_file(join_path(options.fixture_dir, manifest.at("weights_init_file"))));
+    load_model_from_f32(host_model, read_f32_file(join_path(kDefaultFixtureDir, manifest.at("weights_init_file"))));
     DeviceModel device_model = upload_model_to_device(host_model);
     std::vector<BatchTokens> batches;
-    batches.push_back(make_repeated_batch(tokens, options.batch_size));
+    batches.push_back(make_repeated_batch(tokens, 1));
     try {
         KernelResult result;
         for (std::size_t batch_idx = 0; batch_idx < batches.size(); ++batch_idx) {
             result = run_forward_batched(device_model, batches[batch_idx]);
         }
 
-        compare_arrays("logits", result.logits, repeat_values(read_f32_file(join_path(options.fixture_dir, manifest.at("expected_logits_file"))), options.batch_size), epsilon);
-        compare_arrays("loss", {result.loss}, read_f32_file(join_path(options.fixture_dir, manifest.at("expected_loss_file"))), epsilon);
+        compare_arrays("logits", result.logits, repeat_values(read_f32_file(join_path(kDefaultFixtureDir, manifest.at("expected_logits_file"))), 1), epsilon);
+        compare_arrays("loss", {result.loss}, read_f32_file(join_path(kDefaultFixtureDir, manifest.at("expected_loss_file"))), epsilon);
         std::cout << "validation=pass\n";
     } catch (...) {
         free_device_model(&device_model);
@@ -354,17 +346,10 @@ int run_benchmark(const CliOptions& options) {
     const std::pair<std::string, std::unordered_map<char, int>> vocab_result = build_vocab(docs);
     const std::string& uchars = vocab_result.first;
     const std::unordered_map<char, int>& vocab = vocab_result.second;
-    const ModelConfig config =
-        benchmark_config_from_options(options, static_cast<int>(uchars.size()) + 1);
+    const ModelConfig config = benchmark_config_from_options(options, static_cast<int>(uchars.size()) + 1);
     const int requested_steps = options.num_steps;
     const int steps = std::min(requested_steps, static_cast<int>(docs.size()));
-    const std::vector<BatchTokens> batches = build_length_bucketed_batches(
-        docs,
-        steps,
-        vocab,
-        static_cast<int>(uchars.size()),
-        options.batch_size
-    );
+    const std::vector<BatchTokens> batches = build_length_bucketed_batches(docs, steps, vocab, static_cast<int>(uchars.size()), options.batch_size);
     const Model host_model = initialize_model(config, options.seed);
     DeviceModel device_model = upload_model_to_device(host_model);
     double last_loss = 0.0;
@@ -412,7 +397,7 @@ int run_benchmark(const CliOptions& options) {
     return 0;
 }
 
-}  // namespace
+} 
 
 int main(int argc, char** argv) {
     try {

@@ -17,9 +17,7 @@ namespace {
 
 struct CliOptions {
   std::string mode;
-  std::filesystem::path fixture_dir;
   std::filesystem::path dataset;
-  std::string sample_name = "anna";
   std::string label = "custom";
   int num_steps = -1;
   int n_layer = -1;
@@ -28,6 +26,9 @@ struct CliOptions {
   int n_head = -1;
   std::uint32_t seed = 42;
 };
+
+const std::filesystem::path kDefaultFixtureDir =
+    std::filesystem::path("training_data") / "fixtures" / "small_case";
 
 std::string require_value(int argc, char **argv, int *index) {
   if (*index + 1 >= argc) {
@@ -44,12 +45,8 @@ CliOptions parse_cli(int argc, char **argv) {
     const std::string arg = argv[idx];
     if (arg == "--mode") {
       options.mode = require_value(argc, argv, &idx);
-    } else if (arg == "--fixture-dir") {
-      options.fixture_dir = require_value(argc, argv, &idx);
     } else if (arg == "--dataset") {
       options.dataset = require_value(argc, argv, &idx);
-    } else if (arg == "--sample-name") {
-      options.sample_name = require_value(argc, argv, &idx);
     } else if (arg == "--label") {
       options.label = require_value(argc, argv, &idx);
     } else if (arg == "--num-steps") {
@@ -236,17 +233,12 @@ double compare_arrays(const std::string &label,
   return max_abs_error;
 }
 
-int run_validate(const CliOptions &options) {
-  if (options.fixture_dir.empty()) {
-    throw std::runtime_error("--fixture-dir is required for validate mode");
-  }
-
+int run_validate(const CliOptions &) {
   // Input: manifest metadata plus the fixture files produced by the Python
   // reference. Transformation: rebuild the same model state and token sequence,
   // then run the C++ kernel. Output: max-error checks for logits and loss
   // against the reference outputs.
-  const std::filesystem::path manifest_path =
-      options.fixture_dir / "manifest.txt";
+  const std::filesystem::path manifest_path = kDefaultFixtureDir / "manifest.txt";
   const auto manifest = parse_manifest(manifest_path);
   ModelConfig config;
   config.n_layer = std::stoi(manifest.at("n_layer"));
@@ -259,17 +251,17 @@ int run_validate(const CliOptions &options) {
   const double epsilon = std::stod(manifest.at("validation_epsilon"));
 
   Model model = make_empty_model(config);
-  load_model_from_f32(model, read_f32_file(options.fixture_dir /
+  load_model_from_f32(model, read_f32_file(kDefaultFixtureDir /
                                            manifest.at("weights_init_file")));
   const KernelResult result = run_forward(model, tokens);
 
   compare_arrays(
       "logits", result.logits,
-      read_f32_file(options.fixture_dir / manifest.at("expected_logits_file")),
+      read_f32_file(kDefaultFixtureDir / manifest.at("expected_logits_file")),
       epsilon);
   compare_arrays(
       "loss", {result.loss},
-      read_f32_file(options.fixture_dir / manifest.at("expected_loss_file")),
+      read_f32_file(kDefaultFixtureDir / manifest.at("expected_loss_file")),
       epsilon);
   std::cout << "validation=pass\n";
   return 0;

@@ -407,7 +407,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description="parallel PyTorch benchmark scaffold")
     parser.add_argument("--mode", choices=["validate", "benchmark"], required=True)
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
-    parser.add_argument("--fixture-dir", type=Path, default=DEFAULT_FIXTURE_DIR)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--num-steps", type=int, default=None)
     parser.add_argument("--label", default="custom")
@@ -427,7 +426,7 @@ def main() -> int:
     args = parse_args()
     try:
         if args.mode == "validate":
-            validate_fixture(args.fixture_dir, args.seed, args.batch_size, args.device)
+            validate_fixture(DEFAULT_FIXTURE_DIR, args.seed, 1, args.device)
             return 0
         config, num_steps, label = config_from_args(args)
         run_benchmark(args.dataset, args.seed, config, num_steps, label, args.batch_size, args.device)

@@ -30,7 +30,6 @@ Or directly:
 python3 methods/serial_python/serial.py \
   --mode dump-fixtures \
   --dataset training_data/datasets/names.txt \
-  --fixture-dir training_data/fixtures/small_case \
   --sample-name anna
 ```
 
@@ -39,41 +38,34 @@ python3 methods/serial_python/serial.py \
 Python reference:
 
 ```bash
-python3 methods/serial_python/serial.py \
-  --mode validate \
-  --fixture-dir training_data/fixtures/small_case
+python3 methods/serial_python/serial.py --mode validate
 ```
 
 Serial PyTorch:
 
 ```bash
-python3 methods/serial_torch/serial.py \
-  --mode validate \
-  --fixture-dir training_data/fixtures/small_case
+python3 methods/serial_torch/serial.py --mode validate
 ```
 
 Batched PyTorch:
 
 ```bash
-python3 methods/parallel_torch/parallel.py \
-  --mode validate \
-  --fixture-dir training_data/fixtures/small_case \
-  --batch-size 6
+python3 methods/parallel_torch/parallel.py --mode validate
 ```
 
 Serial C++:
 
 ```bash
-build/serial_cpp --mode validate --fixture-dir training_data/fixtures/small_case
+build/serial_cpp --mode validate
 ```
 
 Parallel C++:
 
 ```bash
-build/parallel_cpp --mode validate --fixture-dir training_data/fixtures/small_case
+build/parallel_cpp --mode validate
 ```
 
-Note: `parallel_cpp` requires a CUDA build and `nvcc` on `PATH`. The CUDA target is built as C++14 for compatibility with older `nvcc` versions. You can pass `--batch-size N` in validate mode to validate one batch containing N copies of the fixture sequence.
+Note: `parallel_cpp` requires a CUDA build and `nvcc` on `PATH`. The CUDA target is built as C++14 for compatibility with older `nvcc` versions.
 
 ### Benchmark a single method
 
@@ -152,6 +144,12 @@ build/parallel_cpp \
 Note: `parallel_torch` and `parallel_cpp` preprocess benchmark names into fixed-length batches before launching the tensor/CUDA forward path. Each batch contains only sequences with the same token length; the final batch for a length bucket may be smaller than `--batch-size`.
 
 The full sweep definitions live in `scripts/benchmark_matrix.py`.
+
+If you want the short command for one named run instead of typing the full shape:
+
+```bash
+python3 scripts/run_named_benchmark.py parallel_cpp large
+```
 
 Shared benchmark labels:
 

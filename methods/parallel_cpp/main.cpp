@@ -271,14 +271,14 @@ std::vector<float> repeat_values(const std::vector<float>& values, int repeat_co
     return repeated;
 }
 
-double compare_arrays(const std::string& label, const std::vector<double>& actual, const std::vector<float>& expected, double epsilon) {
+double compare_arrays(const std::string& label, const std::vector<float>& actual, const std::vector<float>& expected, double epsilon) {
     if (actual.size() != expected.size()) {
         throw std::runtime_error(label + " size mismatch");
     }
     double max_abs_error = 0.0;
     std::size_t max_idx = 0;
     for (std::size_t idx = 0; idx < actual.size(); ++idx) {
-        const double abs_error = std::abs(actual[idx] - static_cast<double>(expected[idx]));
+        const double abs_error = std::abs(static_cast<double>(actual[idx]) - static_cast<double>(expected[idx]));
         if (abs_error > max_abs_error) {
             max_abs_error = abs_error;
             max_idx = idx;
@@ -352,9 +352,9 @@ int run_benchmark(const CliOptions& options) {
     const std::vector<BatchTokens> batches = build_length_bucketed_batches(docs, steps, vocab, static_cast<int>(uchars.size()), options.batch_size);
     const Model host_model = initialize_model(config, options.seed);
     DeviceModel device_model = upload_model_to_device(host_model);
-    double last_loss = 0.0;
-    double mean_loss = 0.0;
-    double weighted_loss_sum = 0.0;
+    float last_loss = 0.0f;
+    float mean_loss = 0.0f;
+    float weighted_loss_sum = 0.0f;
     int loss_item_count = 0;
     double forward_pass_seconds_cumulative = 0.0;
     const std::string last_doc = steps > 0 ? docs[steps - 1] : "";
@@ -368,11 +368,11 @@ int run_benchmark(const CliOptions& options) {
 
             const int usable_seq_len = compute_usable_seq_len(config, batch);
             const int batch_loss_items = batch.batch_size * usable_seq_len;
-            weighted_loss_sum += last_loss * static_cast<double>(batch_loss_items);
+            weighted_loss_sum += last_loss * static_cast<float>(batch_loss_items);
             loss_item_count += batch_loss_items;
         }
         if (loss_item_count > 0) {
-            mean_loss = weighted_loss_sum / static_cast<double>(loss_item_count);
+            mean_loss = weighted_loss_sum / static_cast<float>(loss_item_count);
         }
     } catch (...) {
         free_device_model(&device_model);

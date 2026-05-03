@@ -5,15 +5,15 @@
 
 namespace {
 
-constexpr double kInitStd = 0.08;
+constexpr float kInitStd = 0.08f;
 
-void append_values(std::vector<double>* out, const std::vector<double>& values) {
+void append_values(std::vector<float>* out, const std::vector<float>& values) {
     out->insert(out->end(), values.begin(), values.end());
 }
 
-void assign_random(std::vector<double>* values, std::mt19937* rng) {
-    std::normal_distribution<double> normal(0.0, kInitStd);
-    for (double& value : *values) {
+void assign_random(std::vector<float>* values, std::mt19937* rng) {
+    std::normal_distribution<float> normal(0.0f, kInitStd);
+    for (float& value : *values) {
         value = normal(*rng);
     }
 }
@@ -57,12 +57,12 @@ Model initialize_model(const ModelConfig& config, std::uint32_t seed) {
 
 void load_model_from_f32(Model& host_model, const std::vector<float>& values) {
     std::size_t cursor = 0;
-    auto load_into = [&](std::vector<double>* target) {
+    auto load_into = [&](std::vector<float>* target) {
         if (cursor + target->size() > values.size()) {
             throw std::runtime_error("weights file is smaller than expected");
         }
-        for (double& value : *target) {
-            value = static_cast<double>(values[cursor++]);
+        for (float& value : *target) {
+            value = values[cursor++];
         }
     };
 
@@ -82,8 +82,8 @@ void load_model_from_f32(Model& host_model, const std::vector<float>& values) {
     }
 }
 
-std::vector<double> flatten_model_values(const Model& host_model) {
-    std::vector<double> values;
+std::vector<float> flatten_model_values(const Model& host_model) {
+    std::vector<float> values;
     std::size_t total_size = host_model.wte.size() + host_model.wpe.size() + host_model.lm_head.size();
     for (const LayerWeights& layer : host_model.layers) {
         total_size += layer.attn_wq.size() + layer.attn_wk.size() + layer.attn_wv.size() + layer.attn_wo.size() +

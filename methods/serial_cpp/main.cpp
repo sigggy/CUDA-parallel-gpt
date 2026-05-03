@@ -206,7 +206,7 @@ std::vector<float> read_f32_file(const std::filesystem::path &path) {
 }
 
 double compare_arrays(const std::string &label,
-                      const std::vector<double> &actual,
+                      const std::vector<float> &actual,
                       const std::vector<float> &expected, double epsilon) {
   if (actual.size() != expected.size()) {
     throw std::runtime_error(label + " size mismatch");
@@ -215,7 +215,7 @@ double compare_arrays(const std::string &label,
   std::size_t max_idx = 0;
   for (std::size_t idx = 0; idx < actual.size(); ++idx) {
     const double abs_error =
-        std::abs(actual[idx] - static_cast<double>(expected[idx]));
+        std::abs(static_cast<double>(actual[idx]) - static_cast<double>(expected[idx]));
     if (abs_error > max_abs_error) {
       max_abs_error = abs_error;
       max_idx = idx;
@@ -291,7 +291,7 @@ int run_benchmark(const CliOptions &options) {
   // Transformation: tokenize each name and run one forward pass per example.
   // Output: the loss from the last processed document, which is printed for
   // benchmarking.
-  double last_loss = 0.0;
+  float last_loss = 0.0f;
   double forward_pass_seconds_cumulative = 0.0;
   std::string last_doc;
   for (int step = 0; step < steps; ++step) {

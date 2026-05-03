@@ -15,30 +15,30 @@ struct ModelConfig {
 };
 
 struct LayerWeights {
-  std::vector<double> attn_wq;
-  std::vector<double> attn_wk;
-  std::vector<double> attn_wv;
-  std::vector<double> attn_wo;
-  std::vector<double> mlp_fc1;
-  std::vector<double> mlp_fc2;
+  std::vector<float> attn_wq;
+  std::vector<float> attn_wk;
+  std::vector<float> attn_wv;
+  std::vector<float> attn_wo;
+  std::vector<float> mlp_fc1;
+  std::vector<float> mlp_fc2;
 };
 
 struct Model {
   ModelConfig config;
-  std::vector<double> wte;
-  std::vector<double> wpe;
-  std::vector<double> lm_head;
+  std::vector<float> wte;
+  std::vector<float> wpe;
+  std::vector<float> lm_head;
   std::vector<LayerWeights> layers;
 };
 
 struct KernelResult {
   int seq_len = 0;
-  std::vector<double> logits;
-  double loss = 0.0;
+  std::vector<float> logits;
+  float loss = 0.0f;
 };
 
 Model make_empty_model(const ModelConfig &config);
 Model initialize_model(const ModelConfig &config, std::uint32_t seed);
 void load_model_from_f32(Model &model, const std::vector<float> &values);
-std::vector<double> flatten_model_values(const Model &model);
+std::vector<float> flatten_model_values(const Model &model);
 KernelResult run_forward(const Model &model, const std::vector<int> &tokens);

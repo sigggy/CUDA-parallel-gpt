@@ -9,28 +9,15 @@ DATASET="$ROOT_DIR/training_data/datasets/names.txt"
 FIXTURE_DIR="$ROOT_DIR/training_data/fixtures/small_case"
 PYTHON_BIN="${PYTHON:-python3}"
 DEFAULT_BATCH_SIZE="${BATCH_SIZE:-32}"
+BENCHMARK_MATRIX="$ROOT_DIR/scripts/benchmark_matrix.py"
+baseline_dir="$(mktemp -d)"
+trap 'rm -rf "$baseline_dir"' EXIT
 
 serial_python_valid=0
 serial_torch_valid=0
 parallel_torch_valid=0
 serial_valid=0
 parallel_valid=0
-baseline_small=""
-baseline_medium=""
-baseline_large=""
-baseline_very_large=""
-baseline_extra_large=""
-baseline_names_1k=""
-baseline_names_5k=""
-baseline_names_10k=""
-baseline_names_20k=""
-baseline_names_30k=""
-baseline_model_small_1k=""
-baseline_model_medium_1k=""
-baseline_model_large_1k=""
-baseline_model_very_large_1k=""
-baseline_model_extra_large_1k=""
-
 set_valid() {
     case "$1" in
         serial_python) serial_python_valid="$2" ;;
@@ -53,43 +40,13 @@ is_valid() {
 }
 
 set_baseline() {
-    case "$1" in
-        small) baseline_small="$2" ;;
-        medium) baseline_medium="$2" ;;
-        large) baseline_large="$2" ;;
-        very-large) baseline_very_large="$2" ;;
-        extra-large) baseline_extra_large="$2" ;;
-        names-1k) baseline_names_1k="$2" ;;
-        names-5k) baseline_names_5k="$2" ;;
-        names-10k) baseline_names_10k="$2" ;;
-        names-20k) baseline_names_20k="$2" ;;
-        names-30k) baseline_names_30k="$2" ;;
-        model-small-1k) baseline_model_small_1k="$2" ;;
-        model-medium-1k) baseline_model_medium_1k="$2" ;;
-        model-large-1k) baseline_model_large_1k="$2" ;;
-        model-very-large-1k) baseline_model_very_large_1k="$2" ;;
-        model-extra-large-1k) baseline_model_extra_large_1k="$2" ;;
-    esac
+    printf "%s" "$2" > "$baseline_dir/$1"
 }
 
 get_baseline() {
-    case "$1" in
-        small) printf "%s" "$baseline_small" ;;
-        medium) printf "%s" "$baseline_medium" ;;
-        large) printf "%s" "$baseline_large" ;;
-        very-large) printf "%s" "$baseline_very_large" ;;
-        extra-large) printf "%s" "$baseline_extra_large" ;;
-        names-1k) printf "%s" "$baseline_names_1k" ;;
-        names-5k) printf "%s" "$baseline_names_5k" ;;
-        names-10k) printf "%s" "$baseline_names_10k" ;;
-        names-20k) printf "%s" "$baseline_names_20k" ;;
-        names-30k) printf "%s" "$baseline_names_30k" ;;
-        model-small-1k) printf "%s" "$baseline_model_small_1k" ;;
-        model-medium-1k) printf "%s" "$baseline_model_medium_1k" ;;
-        model-large-1k) printf "%s" "$baseline_model_large_1k" ;;
-        model-very-large-1k) printf "%s" "$baseline_model_very_large_1k" ;;
-        model-extra-large-1k) printf "%s" "$baseline_model_extra_large_1k" ;;
-    esac
+    if [ -f "$baseline_dir/$1" ]; then
+        cat "$baseline_dir/$1"
+    fi
 }
 
 run_validate_method() {
@@ -118,7 +75,12 @@ run_validate_method() {
 
 benchmark_once() {
     local method="$1"
-    local preset="$2"
+    local label="$2"
+    local n_layer="$3"
+    local n_embd="$4"
+    local block_size="$5"
+    local n_head="$6"
+    local steps="$7"
     local time_file
     time_file="$(mktemp)"
     case "$method" in
@@ -126,7 +88,12 @@ benchmark_once() {
             if ! /usr/bin/time -p "$PYTHON_BIN" "$ROOT_DIR/methods/serial_python/serial.py" \
                 --mode benchmark \
                 --dataset "$DATASET" \
-                --preset "$preset" \
+                --label "$label" \
+                --num-steps "$steps" \
+                --n-layer "$n_layer" \
+                --n-embd "$n_embd" \
+                --block-size "$block_size" \
+                --n-head "$n_head" \
                 > /dev/null 2> "$time_file"; then
                 rm -f "$time_file"
                 return 1
@@ -136,7 +103,12 @@ benchmark_once() {
             if ! /usr/bin/time -p "$PYTHON_BIN" "$ROOT_DIR/methods/serial_torch/serial.py" \
                 --mode benchmark \
                 --dataset "$DATASET" \
-                --preset "$preset" \
+                --label "$label" \
+                --num-steps "$steps" \
+                --n-layer "$n_layer" \
+                --n-embd "$n_embd" \
+                --block-size "$block_size" \
+                --n-head "$n_head" \
                 > /dev/null 2> "$time_file"; then
                 rm -f "$time_file"
                 return 1
@@ -146,7 +118,12 @@ benchmark_once() {
             if ! /usr/bin/time -p "$PYTHON_BIN" "$ROOT_DIR/methods/parallel_torch/parallel.py" \
                 --mode benchmark \
                 --dataset "$DATASET" \
-                --preset "$preset" \
+                --label "$label" \
+                --num-steps "$steps" \
+                --n-layer "$n_layer" \
+                --n-embd "$n_embd" \
+                --block-size "$block_size" \
+                --n-head "$n_head" \
                 --batch-size "$DEFAULT_BATCH_SIZE" \
                 > /dev/null 2> "$time_file"; then
                 rm -f "$time_file"
@@ -157,7 +134,12 @@ benchmark_once() {
             if ! /usr/bin/time -p "$BUILD_DIR/$method" \
                 --mode benchmark \
                 --dataset "$DATASET" \
-                --preset "$preset" \
+                --label "$label" \
+                --num-steps "$steps" \
+                --n-layer "$n_layer" \
+                --n-embd "$n_embd" \
+                --block-size "$block_size" \
+                --n-head "$n_head" \
                 > /dev/null 2> "$time_file"; then
                 rm -f "$time_file"
                 return 1
@@ -167,7 +149,12 @@ benchmark_once() {
             if ! /usr/bin/time -p "$BUILD_DIR/$method" \
                 --mode benchmark \
                 --dataset "$DATASET" \
-                --preset "$preset" \
+                --label "$label" \
+                --num-steps "$steps" \
+                --n-layer "$n_layer" \
+                --n-embd "$n_embd" \
+                --block-size "$block_size" \
+                --n-head "$n_head" \
                 --batch-size "$DEFAULT_BATCH_SIZE" \
                 > /dev/null 2> "$time_file"; then
                 rm -f "$time_file"
@@ -204,27 +191,27 @@ for method in serial_python serial_torch parallel_torch serial_cpp parallel_cpp;
     fi
 done
 
-for preset in small medium large very-large extra-large names-1k names-5k names-10k names-20k names-30k model-small-1k model-medium-1k model-large-1k model-very-large-1k model-extra-large-1k; do
-    printf "\nPreset: %s\n" "$preset"
+while IFS=$'\t' read -r label n_layer n_embd block_size n_head steps; do
+    printf "\nPreset: %s\n" "$label"
     for method in serial_cpp serial_python serial_torch parallel_torch parallel_cpp; do
-        if [ "$method" = "serial_python" ] && [ "$preset" != "small" ] && [ "$preset" != "medium" ]; then
-            printf "%s: skipped for preset=%s\n" "$method" "$preset"
+        if [ "$method" = "serial_python" ] && [ "$label" != "small" ] && [ "$label" != "medium" ]; then
+            printf "%s: skipped for preset=%s\n" "$method" "$label"
             continue
         fi
         if ! is_valid "$method"; then
             printf "%s: INVALID\n" "$method"
             continue
         fi
-        raw_time="$(benchmark_once "$method" "$preset")" || {
+        raw_time="$(benchmark_once "$method" "$label" "$n_layer" "$n_embd" "$block_size" "$n_head" "$steps")" || {
             printf "%s: benchmark failed\n" "$method"
             continue
         }
         printf "%s raw_real=%s\n" "$method" "$raw_time"
         if [ "$method" = "serial_cpp" ]; then
-            set_baseline "$preset" "$raw_time"
+            set_baseline "$label" "$raw_time"
             printf "%s speedup=1.000000\n" "$method"
         else
-            baseline_value="$(get_baseline "$preset")"
+            baseline_value="$(get_baseline "$label")"
             if [ -n "$baseline_value" ]; then
                 speedup="$(awk -v base="$baseline_value" -v current="$raw_time" 'BEGIN { printf "%.6f", base / current }')"
                 printf "%s speedup=%s\n" "$method" "$speedup"
@@ -233,4 +220,4 @@ for preset in small medium large very-large extra-large names-1k names-5k names-
             fi
         fi
     done
-done
+done < <("$PYTHON_BIN" "$BENCHMARK_MATRIX" --format tsv)

@@ -18,7 +18,6 @@ if str(METHODS_DIR) not in sys.path:
     sys.path.insert(0, str(METHODS_DIR))
 
 from parallel_torch.parallel import (  # noqa: E402
-    BENCHMARK_PRESETS,
     DEFAULT_DATASET,
     DEFAULT_FIXTURE_DIR,
     DEFAULT_SEED,
@@ -29,6 +28,7 @@ from parallel_torch.parallel import (  # noqa: E402
     compare_arrays,
     encode_doc,
     flatten_logits,
+    config_from_args,
     initialize_model,
     load_docs,
     load_model_from_f32,
@@ -76,8 +76,9 @@ def validate_fixture(fixture_dir: Path, seed: int, device_name: str) -> None:
 def run_benchmark(
     dataset_path: Path,
     seed: int,
-    preset_name: str,
-    num_steps: int | None,
+    config: ModelConfig,
+    num_steps: int,
+    label: str,
     device_name: str,
 ) -> None:
     benchmark_start = time.perf_counter()
@@ -86,10 +87,8 @@ def run_benchmark(
     if not docs:
         raise ValueError(f"dataset is empty: {dataset_path}")
     uchars, vocab, bos = build_vocab(docs)
-    preset = BENCHMARK_PRESETS[preset_name]
-    config = preset["config"]()
-    requested_steps = num_steps if num_steps is not None else preset["steps"]
-    steps = min(requested_steps, len(docs))
+    requested_steps = num_steps
+    steps = min(num_steps, len(docs))
     model = initialize_model(config, len(uchars) + 1, seed, device)
 
     last_loss = 0.0
@@ -120,7 +119,7 @@ def run_benchmark(
         "mode=benchmark "
         "method=serial_torch "
         f"device={device} "
-        f"preset={preset_name} "
+        f"preset={label} "
         f"requested_steps={requested_steps} "
         f"steps={steps} "
         f"last_doc={last_doc} "
@@ -137,8 +136,12 @@ def parse_args():
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
     parser.add_argument("--fixture-dir", type=Path, default=DEFAULT_FIXTURE_DIR)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
-    parser.add_argument("--preset", choices=sorted(BENCHMARK_PRESETS), default="small")
     parser.add_argument("--num-steps", type=int, default=None)
+    parser.add_argument("--label", default="custom")
+    parser.add_argument("--n-layer", type=int, default=None)
+    parser.add_argument("--n-embd", type=int, default=None)
+    parser.add_argument("--block-size", type=int, default=None)
+    parser.add_argument("--n-head", type=int, default=None)
     parser.add_argument("--device", default="auto")
     return parser.parse_args()
 
@@ -149,7 +152,8 @@ def main() -> int:
         if args.mode == "validate":
             validate_fixture(args.fixture_dir, args.seed, args.device)
             return 0
-        run_benchmark(args.dataset, args.seed, args.preset, args.num_steps, args.device)
+        config, num_steps, label = config_from_args(args)
+        run_benchmark(args.dataset, args.seed, config, num_steps, label, args.device)
         return 0
     except Exception as exc:
         print(str(exc), file=sys.stderr)

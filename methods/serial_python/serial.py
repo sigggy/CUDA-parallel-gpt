@@ -19,10 +19,6 @@ DEFAULT_FIXTURE_DIR = REPO_ROOT / "training_data" / "fixtures" / "small_case"
 DEFAULT_SAMPLE_NAME = "anna"
 DEFAULT_SEED = 42
 VALIDATION_EPSILON = 1e-4
-BENCHMARK_PRESETS = {
-    "small": {"config": ModelConfig(n_layer=1, n_embd=64, block_size=64, n_head=4), "steps": 200},
-    "medium": {"config": ModelConfig(n_layer=2, n_embd=128, block_size=64, n_head=8), "steps": 1000},
-}
 
 
 def load_docs(dataset_path: Path):
@@ -111,6 +107,12 @@ def compare_arrays(label: str, actual, expected, epsilon: float):
         raise ValueError(f"{label} exceeded validation epsilon")
 
 
+def require_positive_int(value: int | None, name: str) -> int:
+    if value is None or value < 1:
+        raise ValueError(f"{name} must be at least 1")
+    return value
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="serial Python benchmark scaffold")
     parser.add_argument("--mode", choices=["dump-fixtures", "validate", "benchmark"], required=True)
@@ -118,8 +120,12 @@ def parse_args():
     parser.add_argument("--fixture-dir", type=Path, default=DEFAULT_FIXTURE_DIR)
     parser.add_argument("--sample-name", default=DEFAULT_SAMPLE_NAME)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
-    parser.add_argument("--preset", choices=sorted(BENCHMARK_PRESETS), default="small")
     parser.add_argument("--num-steps", type=int, default=None)
+    parser.add_argument("--label", default="custom")
+    parser.add_argument("--n-layer", type=int, default=None)
+    parser.add_argument("--n-embd", type=int, default=None)
+    parser.add_argument("--block-size", type=int, default=None)
+    parser.add_argument("--n-head", type=int, default=None)
     return parser.parse_args()
 
 
@@ -174,16 +180,20 @@ def validate_fixture(fixture_dir: Path, seed: int):
     print("validation=pass")
 
 
-def run_benchmark(dataset_path: Path, seed: int, preset_name: str, num_steps: int | None):
+def run_benchmark(
+    dataset_path: Path,
+    seed: int,
+    config: ModelConfig,
+    num_steps: int,
+    label: str,
+):
     benchmark_start = time.perf_counter()
     docs = load_docs(dataset_path)
     if not docs:
         raise ValueError(f"dataset is empty: {dataset_path}")
     uchars, vocab, bos = build_vocab(docs)
-    preset = BENCHMARK_PRESETS[preset_name]
-    config = preset["config"]
-    requested_steps = num_steps if num_steps is not None else preset["steps"]
-    steps = min(requested_steps, len(docs))
+    requested_steps = num_steps
+    steps = min(num_steps, len(docs))
     state_dict, _ = init_model(config, len(uchars) + 1, seed)
     last_result = None
     last_doc = ""
@@ -197,7 +207,7 @@ def run_benchmark(dataset_path: Path, seed: int, preset_name: str, num_steps: in
     total_program_seconds = time.perf_counter() - benchmark_start
     print(
         "mode=benchmark "
-        f"preset={preset_name} "
+        f"preset={label} "
         f"requested_steps={requested_steps} "
         f"steps={steps} "
         f"last_doc={last_doc} "
@@ -215,7 +225,15 @@ def main():
     if args.mode == "validate":
         validate_fixture(args.fixture_dir, args.seed)
         return
-    run_benchmark(args.dataset, args.seed, args.preset, args.num_steps)
+    n_layer = require_positive_int(args.n_layer, "--n-layer")
+    n_embd = require_positive_int(args.n_embd, "--n-embd")
+    block_size = require_positive_int(args.block_size, "--block-size")
+    n_head = require_positive_int(args.n_head, "--n-head")
+    num_steps = require_positive_int(args.num_steps, "--num-steps")
+    if n_embd % n_head != 0:
+        raise ValueError("--n-embd must be divisible by --n-head")
+    config = ModelConfig(n_layer=n_layer, n_embd=n_embd, block_size=block_size, n_head=n_head)
+    run_benchmark(args.dataset, args.seed, config, num_steps, args.label)
 
 
 if __name__ == "__main__":

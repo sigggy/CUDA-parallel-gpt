@@ -2,17 +2,23 @@ build/
 __pycache__/
 venv/
 
-
-.aux
-.fdb*
-.fls
-.log
-.nav
-.out
-.snm
-.toc
-.vrb
-.synctex.gz
+# LaTeX build artifacts; keep .tex and .pdf tracked.
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb*
+*.fls
+*.lof
+*.log
+*.lot
+*.nav
+*.out
+*.run.xml
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
 
 
 serial_cpp_medium.trace/

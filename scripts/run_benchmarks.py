@@ -12,6 +12,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from benchmark_matrix import BENCHMARK_RUNS, METHOD_RUN_FILTERS, BenchmarkRun, run_details
+
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 BUILD_DIR = ROOT_DIR / "build"
@@ -19,44 +21,8 @@ DATASET = ROOT_DIR / "training_data" / "datasets" / "names.txt"
 FIXTURE_DIR = ROOT_DIR / "training_data" / "fixtures" / "small_case"
 DEFAULT_OUTPUT = ROOT_DIR / "benchmark_results.json"
 METHODS = ("serial_python", "serial_torch", "parallel_torch", "serial_cpp", "parallel_cpp")
-PRESETS = (
-    "small",
-    "medium",
-    "large",
-    "very-large",
-    "extra-large",
-    "names-1k",
-    "names-5k",
-    "names-10k",
-    "names-20k",
-    "names-30k",
-    "model-small-1k",
-    "model-medium-1k",
-    "model-large-1k",
-    "model-very-large-1k",
-    "model-extra-large-1k",
-)
 DEFAULT_BATCH_SIZE = "512"
-METHOD_PRESETS = {
-    "serial_python": {"small", "medium"},
-}
-PRESET_DETAILS = {
-    "small": {"n_layer": 1, "n_embd": 64, "block_size": 64, "n_head": 4, "steps": 200},
-    "medium": {"n_layer": 2, "n_embd": 128, "block_size": 64, "n_head": 8, "steps": 1000},
-    "large": {"n_layer": 4, "n_embd": 256, "block_size": 128, "n_head": 8, "steps": 2500},
-    "very-large": {"n_layer": 6, "n_embd": 384, "block_size": 128, "n_head": 12, "steps": 5000},
-    "extra-large": {"n_layer": 8, "n_embd": 512, "block_size": 256, "n_head": 16, "steps": 10000},
-    "names-1k": {"n_layer": 1, "n_embd": 64, "block_size": 64, "n_head": 4, "steps": 1000},
-    "names-5k": {"n_layer": 1, "n_embd": 64, "block_size": 64, "n_head": 4, "steps": 5000},
-    "names-10k": {"n_layer": 1, "n_embd": 64, "block_size": 64, "n_head": 4, "steps": 10000},
-    "names-20k": {"n_layer": 2, "n_embd": 128, "block_size": 64, "n_head": 8, "steps": 20000},
-    "names-30k": {"n_layer": 2, "n_embd": 128, "block_size": 64, "n_head": 8, "steps": 30000},
-    "model-small-1k": {"n_layer": 1, "n_embd": 64, "block_size": 64, "n_head": 4, "steps": 1000},
-    "model-medium-1k": {"n_layer": 2, "n_embd": 128, "block_size": 64, "n_head": 8, "steps": 1000},
-    "model-large-1k": {"n_layer": 4, "n_embd": 256, "block_size": 128, "n_head": 8, "steps": 1000},
-    "model-very-large-1k": {"n_layer": 6, "n_embd": 384, "block_size": 128, "n_head": 12, "steps": 1000},
-    "model-extra-large-1k": {"n_layer": 8, "n_embd": 512, "block_size": 256, "n_head": 16, "steps": 1000},
-}
+RUN_DETAILS = run_details()
 
 
 @dataclass
@@ -178,16 +144,15 @@ def baseline_seconds(
 
 def render_preset_info() -> str:
     rows = []
-    for preset in PRESETS:
-        details = PRESET_DETAILS[preset]
+    for run in BENCHMARK_RUNS:
         rows.append(
             "<tr>"
-            f"<td>{html_escape(preset)}</td>"
-            f"<td>{details['n_layer']}</td>"
-            f"<td>{details['n_embd']}</td>"
-            f"<td>{details['block_size']}</td>"
-            f"<td>{details['n_head']}</td>"
-            f"<td>{details['steps']}</td>"
+            f"<td>{html_escape(run.label)}</td>"
+            f"<td>{run.n_layer}</td>"
+            f"<td>{run.n_embd}</td>"
+            f"<td>{run.block_size}</td>"
+            f"<td>{run.n_head}</td>"
+            f"<td>{run.steps}</td>"
             "</tr>"
         )
     return "\n".join(rows)
@@ -196,7 +161,8 @@ def render_preset_info() -> str:
 def render_benchmark_rows(results: dict[str, object]) -> str:
     lookup = benchmark_lookup(results)
     rows = []
-    for preset in PRESETS:
+    for run in BENCHMARK_RUNS:
+        preset = run.label
         rows.append(
             "<tr class=\"preset-row\">"
             f"<th colspan=\"9\">preset: {html_escape(preset)}</th>"
@@ -385,18 +351,38 @@ def run_validate_method(method: str) -> CommandResult:
     )
 
 
-def run_benchmark_method(method: str, preset: str) -> CommandResult:
+def benchmark_command(method: str, run: BenchmarkRun) -> list[str]:
+    command = [
+        "--mode",
+        "benchmark",
+        "--dataset",
+        str(DATASET),
+        "--label",
+        run.label,
+        "--num-steps",
+        str(run.steps),
+        "--n-layer",
+        str(run.n_layer),
+        "--n-embd",
+        str(run.n_embd),
+        "--block-size",
+        str(run.block_size),
+        "--n-head",
+        str(run.n_head),
+    ]
+    if method == "parallel_torch" or method == "parallel_cpp":
+        command.extend(["--batch-size", DEFAULT_BATCH_SIZE])
+    return command
+
+
+def run_benchmark_method(method: str, run: BenchmarkRun) -> CommandResult:
+    command = benchmark_command(method, run)
     if method == "serial_python":
         return run_command(
             [
                 sys.executable,
                 str(ROOT_DIR / "methods" / "serial_python" / "serial.py"),
-                "--mode",
-                "benchmark",
-                "--dataset",
-                str(DATASET),
-                "--preset",
-                preset,
+                *command,
             ]
         )
     if method == "serial_torch":
@@ -404,12 +390,7 @@ def run_benchmark_method(method: str, preset: str) -> CommandResult:
             [
                 sys.executable,
                 str(ROOT_DIR / "methods" / "serial_torch" / "serial.py"),
-                "--mode",
-                "benchmark",
-                "--dataset",
-                str(DATASET),
-                "--preset",
-                preset,
+                *command,
             ]
         )
     if method == "parallel_torch":
@@ -417,28 +398,14 @@ def run_benchmark_method(method: str, preset: str) -> CommandResult:
             [
                 sys.executable,
                 str(ROOT_DIR / "methods" / "parallel_torch" / "parallel.py"),
-                "--mode",
-                "benchmark",
-                "--dataset",
-                str(DATASET),
-                "--preset",
-                preset,
-                "--batch-size",
-                DEFAULT_BATCH_SIZE,
+                *command,
             ]
         )
-    command = [
+    binary_command = [
         str(BUILD_DIR / method),
-        "--mode",
-        "benchmark",
-        "--dataset",
-        str(DATASET),
-        "--preset",
-        preset,
+        *command,
     ]
-    if method == "parallel_cpp":
-        command.extend(["--batch-size", DEFAULT_BATCH_SIZE])
-    return run_command(command)
+    return run_command(binary_command)
 
 
 def main() -> int:
@@ -451,7 +418,7 @@ def main() -> int:
     results: dict[str, object] = {
         "dataset": str(DATASET),
         "fixture_dir": str(FIXTURE_DIR),
-        "presets": PRESET_DETAILS,
+        "presets": RUN_DETAILS,
         "build": {},
         "validate": {},
         "benchmarks": [],
@@ -519,15 +486,16 @@ def main() -> int:
         print(f"validate {method}: {results['validate'][method]['status']}", flush=True)
         write_results(output_path, results)
 
-    for preset in PRESETS:
+    for run in BENCHMARK_RUNS:
+        preset = run.label
         for method in METHODS:
-            allowed_presets = METHOD_PRESETS.get(method)
+            allowed_presets = METHOD_RUN_FILTERS.get(method)
             if allowed_presets is not None and preset not in allowed_presets:
                 results["benchmarks"].append(
                     {
                         "method": method,
                         "preset": preset,
-                        "preset_details": PRESET_DETAILS[preset],
+                        "preset_details": RUN_DETAILS[preset],
                         "status": "skipped",
                         "reason": "preset disabled for method",
                     }
@@ -541,7 +509,7 @@ def main() -> int:
                     {
                         "method": method,
                         "preset": preset,
-                        "preset_details": PRESET_DETAILS[preset],
+                        "preset_details": RUN_DETAILS[preset],
                         "status": "skipped",
                     }
                 )
@@ -550,12 +518,12 @@ def main() -> int:
                 continue
 
             print(f"benchmark {method} {preset}: running", flush=True)
-            benchmark_result = run_benchmark_method(method, preset)
+            benchmark_result = run_benchmark_method(method, run)
             parsed = parse_key_value_line(benchmark_result.stdout)
             benchmark_entry = {
                 "method": method,
                 "preset": preset,
-                "preset_details": PRESET_DETAILS[preset],
+                "preset_details": RUN_DETAILS[preset],
                 "status": "pass" if benchmark_result.returncode == 0 else "fail",
                 "returncode": benchmark_result.returncode,
                 "stdout": benchmark_result.stdout,

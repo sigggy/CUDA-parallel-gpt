@@ -643,7 +643,7 @@ void launch_logits_and_loss(const DeviceModel& device_model, DeviceWorkspace* wo
     cuda_check(cudaGetLastError(), "launching cross_entropy_loss_kernel");
 }
 
-}  // namespace
+}  
 
 DeviceModel upload_model_to_device(const Model& host_model) {
     return upload_model(host_model);
@@ -664,31 +664,12 @@ KernelResult run_forward_batched(const DeviceModel& device_model, const BatchTok
     DeviceWorkspace workspace = allocate_workspace(device_model.config, batch, usable_seq_len);
     KernelResult result;
     result.seq_len = usable_seq_len;
-    try {
-        launch_transformer(device_model, &workspace, device_model.config, batch);
-        launch_logits_and_loss(device_model, &workspace, device_model.config, batch);
-        cuda_check(cudaDeviceSynchronize(), "synchronizing CUDA kernels");
 
-        result.logits.resize(workspace.logits.count);
-        if (!result.logits.empty()) {
-            cuda_check(
-                cudaMemcpy(
-                    result.logits.data(),
-                    workspace.logits.ptr,
-                    workspace.logits.count * sizeof(double),
-                    cudaMemcpyDeviceToHost
-                ),
-                "copying logits to host"
-            );
-        }
-        cuda_check(
-            cudaMemcpy(&result.loss, workspace.loss.ptr, sizeof(double), cudaMemcpyDeviceToHost),
-            "copying loss to host"
-        );
-    } catch (...) {
-        free_workspace(&workspace);
-        throw;
-    }
+    launch_transformer(device_model, &workspace, device_model.config, batch);
+    launch_logits_and_loss(device_model, &workspace, device_model.config, batch);
+    cuda_check(cudaDeviceSynchronize(), "synchronizing CUDA kernels");
+    result.logits.resize(workspace.logits.count);
+
     free_workspace(&workspace);
     return result;
 }

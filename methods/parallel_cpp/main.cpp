@@ -20,39 +20,20 @@ struct CliOptions {
     std::string fixture_dir;
     std::string dataset;
     std::string sample_name = "anna";
-    std::string preset = "small";
+    std::string label = "custom";
     int num_steps = -1;
+    int n_layer = -1;
+    int n_embd = -1;
+    int block_size = -1;
+    int n_head = -1;
     int batch_size = 1;
     std::uint32_t seed = 42;
-};
-
-struct BenchmarkPreset {
-    ModelConfig config;
-    int steps = 0;
 };
 
 struct BatchBucket {
     int seq_length = 0;
     int sequence_count = 0;
     std::vector<int> tokens;
-};
-
-const std::unordered_map<std::string, BenchmarkPreset> kBenchmarkPresets = {
-    {"small", {ModelConfig{1, 64, 64, 4, 0}, 200}},
-    {"medium", {ModelConfig{2, 128, 64, 8, 0}, 1000}},
-    {"large", {ModelConfig{4, 256, 128, 8, 0}, 2500}},
-    {"very-large", {ModelConfig{6, 384, 128, 12, 0}, 5000}},
-    {"extra-large", {ModelConfig{8, 512, 256, 16, 0}, 10000}},
-    {"names-1k", {ModelConfig{1, 64, 64, 4, 0}, 1000}},
-    {"names-5k", {ModelConfig{1, 64, 64, 4, 0}, 5000}},
-    {"names-10k", {ModelConfig{1, 64, 64, 4, 0}, 10000}},
-    {"names-20k", {ModelConfig{2, 128, 64, 8, 0}, 20000}},
-    {"names-30k", {ModelConfig{2, 128, 64, 8, 0}, 30000}},
-    {"model-small-1k", {ModelConfig{1, 64, 64, 4, 0}, 1000}},
-    {"model-medium-1k", {ModelConfig{2, 128, 64, 8, 0}, 1000}},
-    {"model-large-1k", {ModelConfig{4, 256, 128, 8, 0}, 1000}},
-    {"model-very-large-1k", {ModelConfig{6, 384, 128, 12, 0}, 1000}},
-    {"model-extra-large-1k", {ModelConfig{8, 512, 256, 16, 0}, 1000}},
 };
 
 BatchTokens make_repeated_batch(const std::vector<int>& tokens, int batch_size) {
@@ -106,10 +87,18 @@ CliOptions parse_cli(int argc, char** argv) {
             options.dataset = require_value(argc, argv, &idx);
         } else if (arg == "--sample-name") {
             options.sample_name = require_value(argc, argv, &idx);
-        } else if (arg == "--preset") {
-            options.preset = require_value(argc, argv, &idx);
+        } else if (arg == "--label") {
+            options.label = require_value(argc, argv, &idx);
         } else if (arg == "--num-steps") {
             options.num_steps = std::stoi(require_value(argc, argv, &idx));
+        } else if (arg == "--n-layer") {
+            options.n_layer = std::stoi(require_value(argc, argv, &idx));
+        } else if (arg == "--n-embd") {
+            options.n_embd = std::stoi(require_value(argc, argv, &idx));
+        } else if (arg == "--block-size") {
+            options.block_size = std::stoi(require_value(argc, argv, &idx));
+        } else if (arg == "--n-head") {
+            options.n_head = std::stoi(require_value(argc, argv, &idx));
         } else if (arg == "--batch-size") {
             options.batch_size = std::stoi(require_value(argc, argv, &idx));
         } else if (arg == "--seed") {
@@ -154,6 +143,25 @@ std::pair<std::string, std::unordered_map<char, int>> build_vocab(const std::vec
         vocab[chars[idx]] = idx;
     }
     return {chars, vocab};
+}
+
+ModelConfig benchmark_config_from_options(const CliOptions& options, int vocab_size) {
+    if (options.n_layer < 1) {
+        throw std::runtime_error("--n-layer must be at least 1");
+    }
+    if (options.n_embd < 1) {
+        throw std::runtime_error("--n-embd must be at least 1");
+    }
+    if (options.block_size < 1) {
+        throw std::runtime_error("--block-size must be at least 1");
+    }
+    if (options.n_head < 1) {
+        throw std::runtime_error("--n-head must be at least 1");
+    }
+    if (options.n_embd % options.n_head != 0) {
+        throw std::runtime_error("--n-embd must be divisible by --n-head");
+    }
+    return ModelConfig{options.n_layer, options.n_embd, options.block_size, options.n_head, vocab_size};
 }
 
 std::vector<int> encode_doc(const std::string& doc, const std::unordered_map<char, int>& vocab, int bos_token_id) {
@@ -335,9 +343,8 @@ int run_benchmark(const CliOptions& options) {
     if (options.dataset.empty()) {
         throw std::runtime_error("--dataset is required for benchmark mode");
     }
-    const auto preset_it = kBenchmarkPresets.find(options.preset);
-    if (preset_it == kBenchmarkPresets.end()) {
-        throw std::runtime_error("unknown preset: " + options.preset);
+    if (options.num_steps < 1) {
+        throw std::runtime_error("--num-steps must be at least 1");
     }
 
     const std::vector<std::string> docs = load_docs(options.dataset);
@@ -347,9 +354,9 @@ int run_benchmark(const CliOptions& options) {
     const std::pair<std::string, std::unordered_map<char, int>> vocab_result = build_vocab(docs);
     const std::string& uchars = vocab_result.first;
     const std::unordered_map<char, int>& vocab = vocab_result.second;
-    BenchmarkPreset preset = preset_it->second;
-    preset.config.vocab_size = static_cast<int>(uchars.size()) + 1;
-    const int requested_steps = options.num_steps >= 0 ? options.num_steps : preset.steps;
+    const ModelConfig config =
+        benchmark_config_from_options(options, static_cast<int>(uchars.size()) + 1);
+    const int requested_steps = options.num_steps;
     const int steps = std::min(requested_steps, static_cast<int>(docs.size()));
     const std::vector<BatchTokens> batches = build_length_bucketed_batches(
         docs,
@@ -358,7 +365,7 @@ int run_benchmark(const CliOptions& options) {
         static_cast<int>(uchars.size()),
         options.batch_size
     );
-    const Model host_model = initialize_model(preset.config, options.seed);
+    const Model host_model = initialize_model(config, options.seed);
     DeviceModel device_model = upload_model_to_device(host_model);
     double last_loss = 0.0;
     double mean_loss = 0.0;
@@ -374,7 +381,7 @@ int run_benchmark(const CliOptions& options) {
             const auto forward_end = std::chrono::steady_clock::now();
             forward_pass_seconds_cumulative += std::chrono::duration<double>(forward_end - forward_start).count();
 
-            const int usable_seq_len = compute_usable_seq_len(preset.config, batch);
+            const int usable_seq_len = compute_usable_seq_len(config, batch);
             const int batch_loss_items = batch.batch_size * usable_seq_len;
             weighted_loss_sum += last_loss * static_cast<double>(batch_loss_items);
             loss_item_count += batch_loss_items;
@@ -391,7 +398,7 @@ int run_benchmark(const CliOptions& options) {
         std::chrono::duration<double>(std::chrono::steady_clock::now() - benchmark_start).count();
 
     std::cout << "mode=benchmark "
-              << "preset=" << options.preset << ' '
+              << "preset=" << options.label << ' '
               << "requested_steps=" << requested_steps << ' '
               << "steps=" << steps << ' '
               << "batch_size=" << options.batch_size << ' '

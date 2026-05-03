@@ -83,7 +83,12 @@ Python reference:
 python3 methods/serial_python/serial.py \
   --mode benchmark \
   --dataset training_data/datasets/names.txt \
-  --preset medium
+  --label medium \
+  --num-steps 1000 \
+  --n-layer 2 \
+  --n-embd 128 \
+  --block-size 64 \
+  --n-head 8
 ```
 
 Serial PyTorch:
@@ -92,7 +97,12 @@ Serial PyTorch:
 python3 methods/serial_torch/serial.py \
   --mode benchmark \
   --dataset training_data/datasets/names.txt \
-  --preset small
+  --label small \
+  --num-steps 200 \
+  --n-layer 1 \
+  --n-embd 64 \
+  --block-size 64 \
+  --n-head 4
 ```
 
 Batched PyTorch:
@@ -101,7 +111,12 @@ Batched PyTorch:
 python3 methods/parallel_torch/parallel.py \
   --mode benchmark \
   --dataset training_data/datasets/names.txt \
-  --preset large \
+  --label large \
+  --num-steps 2500 \
+  --n-layer 4 \
+  --n-embd 256 \
+  --block-size 128 \
+  --n-head 8 \
   --batch-size 6
 ```
 
@@ -111,7 +126,12 @@ Serial C++:
 build/serial_cpp \
   --mode benchmark \
   --dataset training_data/datasets/names.txt \
-  --preset small
+  --label small \
+  --num-steps 200 \
+  --n-layer 1 \
+  --n-embd 64 \
+  --block-size 64 \
+  --n-head 4
 ```
 
 Parallel C++:
@@ -120,13 +140,20 @@ Parallel C++:
 build/parallel_cpp \
   --mode benchmark \
   --dataset training_data/datasets/names.txt \
-  --preset small \
+  --label small \
+  --num-steps 200 \
+  --n-layer 1 \
+  --n-embd 64 \
+  --block-size 64 \
+  --n-head 4 \
   --batch-size 6
 ```
 
 Note: `parallel_torch` and `parallel_cpp` preprocess benchmark names into fixed-length batches before launching the tensor/CUDA forward path. Each batch contains only sequences with the same token length; the final batch for a length bucket may be smaller than `--batch-size`.
 
-Optional presets:
+The full sweep definitions live in `scripts/benchmark_matrix.py`.
+
+Shared benchmark labels:
 
 - `small`
 - `medium`
@@ -146,14 +173,18 @@ Optional presets:
 
 `small` through `extra-large` increase both model size and number of names, up to 10k names. The `names-*` presets keep the model small-to-medium while increasing the number of names, up to 30k names. The `model-*-1k` presets keep names fixed around 1k while increasing all model-size dimensions. The pure scalar `serial_python` method is only run on `small` and `medium` by the benchmark drivers.
 
-Override how many names are processed if needed:
+Override the run shape directly if needed:
 
 ```bash
 build/serial_cpp \
   --mode benchmark \
   --dataset training_data/datasets/names.txt \
-  --preset small \
-  --num-steps 10
+  --label custom-10 \
+  --num-steps 10 \
+  --n-layer 1 \
+  --n-embd 64 \
+  --block-size 64 \
+  --n-head 4
 ```
 
 For the CUDA method, override the maximum batch size with:
@@ -162,8 +193,12 @@ For the CUDA method, override the maximum batch size with:
 build/parallel_cpp \
   --mode benchmark \
   --dataset training_data/datasets/names.txt \
-  --preset small \
+  --label custom-10 \
   --num-steps 10 \
+  --n-layer 1 \
+  --n-embd 64 \
+  --block-size 64 \
+  --n-head 4 \
   --batch-size 6
 ```
 
@@ -193,6 +228,12 @@ To choose both output paths:
 
 ```bash
 python3 scripts/run_benchmarks.py benchmark_results.json --html-output benchmark_results.html
+```
+
+To inspect the shared benchmark matrix directly:
+
+```bash
+python3 scripts/benchmark_matrix.py --format json
 ```
 
 ## Repo Layout

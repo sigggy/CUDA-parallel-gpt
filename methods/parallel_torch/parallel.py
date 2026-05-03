@@ -30,23 +30,6 @@ DEFAULT_DATASET = REPO_ROOT / "training_data" / "datasets" / "names.txt"
 DEFAULT_FIXTURE_DIR = REPO_ROOT / "training_data" / "fixtures" / "small_case"
 DEFAULT_SEED = 42
 VALIDATION_EPSILON = 1e-4
-BENCHMARK_PRESETS = {
-    "small": {"config": lambda: ModelConfig(n_layer=1, n_embd=64, block_size=64, n_head=4), "steps": 200},
-    "medium": {"config": lambda: ModelConfig(n_layer=2, n_embd=128, block_size=64, n_head=8), "steps": 1000},
-    "large": {"config": lambda: ModelConfig(n_layer=4, n_embd=256, block_size=128, n_head=8), "steps": 2500},
-    "very-large": {"config": lambda: ModelConfig(n_layer=6, n_embd=384, block_size=128, n_head=12), "steps": 5000},
-    "extra-large": {"config": lambda: ModelConfig(n_layer=8, n_embd=512, block_size=256, n_head=16), "steps": 10000},
-    "names-1k": {"config": lambda: ModelConfig(n_layer=1, n_embd=64, block_size=64, n_head=4), "steps": 1000},
-    "names-5k": {"config": lambda: ModelConfig(n_layer=1, n_embd=64, block_size=64, n_head=4), "steps": 5000},
-    "names-10k": {"config": lambda: ModelConfig(n_layer=1, n_embd=64, block_size=64, n_head=4), "steps": 10000},
-    "names-20k": {"config": lambda: ModelConfig(n_layer=2, n_embd=128, block_size=64, n_head=8), "steps": 20000},
-    "names-30k": {"config": lambda: ModelConfig(n_layer=2, n_embd=128, block_size=64, n_head=8), "steps": 30000},
-    "model-small-1k": {"config": lambda: ModelConfig(n_layer=1, n_embd=64, block_size=64, n_head=4), "steps": 1000},
-    "model-medium-1k": {"config": lambda: ModelConfig(n_layer=2, n_embd=128, block_size=64, n_head=8), "steps": 1000},
-    "model-large-1k": {"config": lambda: ModelConfig(n_layer=4, n_embd=256, block_size=128, n_head=8), "steps": 1000},
-    "model-very-large-1k": {"config": lambda: ModelConfig(n_layer=6, n_embd=384, block_size=128, n_head=12), "steps": 1000},
-    "model-extra-large-1k": {"config": lambda: ModelConfig(n_layer=8, n_embd=512, block_size=256, n_head=16), "steps": 1000},
-}
 
 
 @dataclass(frozen=True)
@@ -96,6 +79,23 @@ def choose_device(device_name: str):
     if device_name.startswith("cuda") and not torch.cuda.is_available():
         raise RuntimeError("CUDA device requested, but torch.cuda.is_available() is false")
     return torch.device(device_name)
+
+
+def require_positive_int(value: int | None, name: str) -> int:
+    if value is None or value < 1:
+        raise ValueError(f"{name} must be at least 1")
+    return value
+
+
+def config_from_args(args: argparse.Namespace) -> tuple[ModelConfig, int, str]:
+    n_layer = require_positive_int(args.n_layer, "--n-layer")
+    n_embd = require_positive_int(args.n_embd, "--n-embd")
+    block_size = require_positive_int(args.block_size, "--block-size")
+    n_head = require_positive_int(args.n_head, "--n-head")
+    num_steps = require_positive_int(args.num_steps, "--num-steps")
+    if n_embd % n_head != 0:
+        raise ValueError("--n-embd must be divisible by --n-head")
+    return ModelConfig(n_layer=n_layer, n_embd=n_embd, block_size=block_size, n_head=n_head), num_steps, args.label
 
 
 def load_docs(dataset_path: Path) -> list[str]:
@@ -348,8 +348,9 @@ def validate_fixture(fixture_dir: Path, seed: int, batch_size: int, device_name:
 def run_benchmark(
     dataset_path: Path,
     seed: int,
-    preset_name: str,
-    num_steps: int | None,
+    config: ModelConfig,
+    num_steps: int,
+    label: str,
     batch_size: int,
     device_name: str,
 ) -> None:
@@ -359,10 +360,8 @@ def run_benchmark(
     if not docs:
         raise ValueError(f"dataset is empty: {dataset_path}")
     uchars, vocab, bos = build_vocab(docs)
-    preset = BENCHMARK_PRESETS[preset_name]
-    config = preset["config"]()
-    requested_steps = num_steps if num_steps is not None else preset["steps"]
-    steps = min(requested_steps, len(docs))
+    requested_steps = num_steps
+    steps = min(num_steps, len(docs))
     batches = build_length_bucketed_batches(docs, steps, vocab, bos, batch_size, device)
     model = initialize_model(config, len(uchars) + 1, seed, device)
 
@@ -391,7 +390,7 @@ def run_benchmark(
         "mode=benchmark "
         "method=parallel_torch "
         f"device={device} "
-        f"preset={preset_name} "
+        f"preset={label} "
         f"requested_steps={requested_steps} "
         f"steps={steps} "
         f"batch_size={batch_size} "
@@ -410,8 +409,12 @@ def parse_args():
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
     parser.add_argument("--fixture-dir", type=Path, default=DEFAULT_FIXTURE_DIR)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
-    parser.add_argument("--preset", choices=sorted(BENCHMARK_PRESETS), default="small")
     parser.add_argument("--num-steps", type=int, default=None)
+    parser.add_argument("--label", default="custom")
+    parser.add_argument("--n-layer", type=int, default=None)
+    parser.add_argument("--n-embd", type=int, default=None)
+    parser.add_argument("--block-size", type=int, default=None)
+    parser.add_argument("--n-head", type=int, default=None)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--device", default="auto")
     args = parser.parse_args()
@@ -426,7 +429,8 @@ def main() -> int:
         if args.mode == "validate":
             validate_fixture(args.fixture_dir, args.seed, args.batch_size, args.device)
             return 0
-        run_benchmark(args.dataset, args.seed, args.preset, args.num_steps, args.batch_size, args.device)
+        config, num_steps, label = config_from_args(args)
+        run_benchmark(args.dataset, args.seed, config, num_steps, label, args.batch_size, args.device)
         return 0
     except Exception as exc:
         print(str(exc), file=sys.stderr)

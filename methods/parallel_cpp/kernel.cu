@@ -9,6 +9,8 @@
 
 namespace {
 
+constexpr int kLinearTile = 32;
+
 void cuda_check(cudaError_t status, const char* action) {
     if (status != cudaSuccess) {
         throw std::runtime_error(std::string("CUDA failure while ") + action + ": " + cudaGetErrorString(status));
@@ -274,31 +276,43 @@ __global__ void rmsnorm_kernel(
 }
 
 
-__global__ void linear_kernel(
+__global__ void linear_tiled_kernel(
     const double* input,
-    double* output,
     const double* weights,
-    int in_dim,
+    double* output,
+    int total_tokens,
     int out_dim,
-    int num_batches,
-    int usable_seq_len
+    int in_dim
 ) {
-    int total_tokens = num_batches * usable_seq_len;
-    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    __shared__ double input_tile[kLinearTile][kLinearTile];
+    __shared__ double weight_tile[kLinearTile][kLinearTile];
 
-    if (idx >= total_tokens) return;
+    const int row = blockIdx.x * kLinearTile + threadIdx.x;
+    const int col = blockIdx.y * kLinearTile + threadIdx.y;
 
-    int input_start = idx * in_dim;
-    int output_start = idx * out_dim;
+    double sum = 0.0;
+    const int tile_count = (in_dim + kLinearTile - 1) / kLinearTile;
 
-    for (int out = 0; out < out_dim; ++out) {
-        double sum = 0.0;
+    for (int tile_idx = 0; tile_idx < tile_count; ++tile_idx) {
+        const int input_col = tile_idx * kLinearTile + threadIdx.y;
+        const int weight_col = tile_idx * kLinearTile + threadIdx.x;
 
-        for (int in = 0; in < in_dim; ++in) {
-            sum += weights[out * in_dim + in] * input[input_start + in];
+        input_tile[threadIdx.x][threadIdx.y] =
+            (row < total_tokens && input_col < in_dim) ? input[row * in_dim + input_col] : 0.0;
+        weight_tile[threadIdx.y][threadIdx.x] =
+            (col < out_dim && weight_col < in_dim) ? weights[col * in_dim + weight_col] : 0.0;
+
+        __syncthreads();
+
+        for (int tile_offset = 0; tile_offset < kLinearTile; ++tile_offset) {
+            sum += input_tile[threadIdx.x][tile_offset] * weight_tile[threadIdx.y][tile_offset];
         }
 
-        output[output_start + out] = sum;
+        __syncthreads();
+    }
+
+    if (row < total_tokens && col < out_dim) {
+        output[row * out_dim + col] = sum;
     }
 }
 
@@ -475,22 +489,23 @@ void launch_linear(
     int batch_size,
     int usable_seq_len
 ) {
-    const auto launch = make_1d_launch(
-        static_cast<std::size_t>(batch_size) *
-        static_cast<std::size_t>(usable_seq_len)
+    const int total_tokens = batch_size * usable_seq_len;
+    const dim3 block(kLinearTile, kLinearTile);
+    const dim3 grid(
+        static_cast<unsigned int>((total_tokens + kLinearTile - 1) / kLinearTile),
+        static_cast<unsigned int>((out_dim + kLinearTile - 1) / kLinearTile)
     );
 
-    linear_kernel<<<launch.blocks, launch.threads>>>(
+    linear_tiled_kernel<<<grid, block>>>(
         input,
-        output,
         weights,
-        in_dim, 
+        output,
+        total_tokens,
         out_dim,
-        batch_size,
-        usable_seq_len
+        in_dim
     );
 
-    cuda_check(cudaGetLastError(), "launching linear_kernel");
+    cuda_check(cudaGetLastError(), "launching linear_tiled_kernel");
 }
 
 

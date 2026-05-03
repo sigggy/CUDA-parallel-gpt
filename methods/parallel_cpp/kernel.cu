@@ -276,7 +276,7 @@ __global__ void rmsnorm_kernel(
 }
 
 
-__global__ void linear_tiled_kernel(
+__global__ void linear_kernel(
     const float* input,
     const float* weights,
     float* output,
@@ -284,36 +284,18 @@ __global__ void linear_tiled_kernel(
     int out_dim,
     int in_dim
 ) {
-    __shared__ float input_tile[kLinearTile][kLinearTile];
-    __shared__ float weight_tile[kLinearTile][kLinearTile];
+    const int row = blockIdx.x * blockDim.x + threadIdx.x; // token index
+    const int col = blockIdx.y * blockDim.y + threadIdx.y; // output neuron
 
-    const int row = blockIdx.x * kLinearTile + threadIdx.x;
-    const int col = blockIdx.y * kLinearTile + threadIdx.y;
+    if (row >= total_tokens || col >= out_dim) return;
 
     float sum = 0.0f;
-    const int tile_count = (in_dim + kLinearTile - 1) / kLinearTile;
 
-    for (int tile_idx = 0; tile_idx < tile_count; ++tile_idx) {
-        const int input_col = tile_idx * kLinearTile + threadIdx.y;
-        const int weight_col = tile_idx * kLinearTile + threadIdx.x;
-
-        input_tile[threadIdx.x][threadIdx.y] =
-            (row < total_tokens && input_col < in_dim) ? input[row * in_dim + input_col] : 0.0f;
-        weight_tile[threadIdx.y][threadIdx.x] =
-            (col < out_dim && weight_col < in_dim) ? weights[col * in_dim + weight_col] : 0.0f;
-
-        __syncthreads();
-
-        for (int tile_offset = 0; tile_offset < kLinearTile; ++tile_offset) {
-            sum += input_tile[threadIdx.x][tile_offset] * weight_tile[threadIdx.y][tile_offset];
-        }
-
-        __syncthreads();
+    for (int k = 0; k < in_dim; ++k) {
+        sum += input[row * in_dim + k] * weights[col * in_dim + k];
     }
 
-    if (row < total_tokens && col < out_dim) {
-        output[row * out_dim + col] = sum;
-    }
+    output[row * out_dim + col] = sum;
 }
 
 
@@ -490,19 +472,16 @@ void launch_linear(
     int usable_seq_len
 ) {
     const int total_tokens = batch_size * usable_seq_len;
-    const dim3 block(kLinearTile, kLinearTile);
-    const dim3 grid(
-        static_cast<unsigned int>((total_tokens + kLinearTile - 1) / kLinearTile),
-        static_cast<unsigned int>((out_dim + kLinearTile - 1) / kLinearTile)
+
+    dim3 block(16, 16);
+    dim3 grid(
+        (total_tokens + block.x - 1) / block.x,
+        (out_dim + block.y - 1) / block.y
     );
 
-    linear_tiled_kernel<<<grid, block>>>(
-        input,
-        weights,
-        output,
-        total_tokens,
-        out_dim,
-        in_dim
+    linear_kernel<<<grid, block>>>(
+        input, weights, output,
+        total_tokens, out_dim, in_dim
     );
 
     cuda_check(cudaGetLastError(), "launching linear_tiled_kernel");

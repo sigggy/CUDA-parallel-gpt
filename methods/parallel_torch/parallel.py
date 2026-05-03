@@ -151,7 +151,7 @@ def compare_arrays(label: str, actual: list[float], expected: list[float], epsil
 def random_tensor(rng: random.Random, shape: tuple[int, ...], device) -> object:
     count = math.prod(shape)
     values = [rng.gauss(0.0, 0.08) for _ in range(count)]
-    return torch.tensor(values, dtype=torch.float64, device=device).reshape(shape)
+    return torch.tensor(values, dtype=torch.float32, device=device).reshape(shape)
 
 
 def initialize_model(config: ModelConfig, vocab_size: int, seed: int, device) -> TorchModel:
@@ -182,7 +182,7 @@ def initialize_model(config: ModelConfig, vocab_size: int, seed: int, device) ->
 
 
 def load_model_from_f32(config: ModelConfig, vocab_size: int, values: list[float], device) -> TorchModel:
-    source = torch.tensor(values, dtype=torch.float64, device=device)
+    source = torch.tensor(values, dtype=torch.float32, device=device)
     cursor = 0
 
     def take(shape: tuple[int, ...]):

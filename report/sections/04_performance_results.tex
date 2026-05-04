@@ -1,4 +1,7 @@
 \section{Performance Results with Graphs}
+
+The following sections present performance graphs across the evaluated model presets. We compare PyTorch, serial C++, and our custom parallel CUDA implementation to analyze forward-pass runtime across configurations. For each preset, we include a plot highlighting serial C++ performance as a baseline and the resulting speedup obtained through parallelization.
+
 \begin{table}[H]
 \centering
     \begin{tabular}{lccccc}
@@ -15,6 +18,10 @@
 \caption{Model and Name Size Configurations}
 \end{table}
 
+The first set of presets range in both model size and the number of names that we are performing the forward pass on. The aim of
+these presets was to determine what the forward pass time looked like across the various implementations as we scaled every parameter up.
+As you can see in the "Forward Pass Time Across Presets" graph, our implementation surpassed the serial C++ version (our baseline) on every preset.
+Additionally, we outperformed the PyTorch implementations for smaller dataset sizes.
 
 \begin{figure}[H]
 \centering
@@ -80,6 +87,8 @@
 \end{axis}
 \end{tikzpicture}
 \end{figure}
+
+The following figure illustrates the speedup achieved by our parallel implementation relative to the serial C++ baseline. As expected, the parallel version outperforms the serial implementation across all preset sizes. The trend also highlights that the performance advantage grows with increasing workload, since larger presets provide more opportunities to amortize kernel launch overhead and better utilize GPU parallelism. Notably, for the largest configurations, the forward pass achieves speedups exceeding 300×, indicating that the implementation scales particularly well under high compute intensity where the GPU is able to remain fully saturated.
 
 \begin{figure}[H]
 \centering
@@ -220,11 +229,11 @@
         \hline
         \textbf{Preset} & \textbf{n\_layer} & \textbf{n\_embd} & \textbf{block\_size} & \textbf{n\_head} & \textbf{steps} \\
         \hline
-        model-small-1k        & 1 & 64  & 512 & 4  & 5000 \\
-        model-medium-1k       & 2 & 128 & 512 & 8  & 5000 \\
-        model-large-1k        & 4 & 256 & 512 & 8  & 5000 \\
-        model-very-large-1k   & 6 & 384 & 512 & 12 & 5000 \\
-        model-extra-large-1k  & 8 & 512 & 512 & 16 & 5000 \\
+        model-small-5k        & 1 & 64  & 512 & 4  & 5000 \\
+        model-medium-5k       & 2 & 128 & 512 & 8  & 5000 \\
+        model-large-5k        & 4 & 256 & 512 & 8  & 5000 \\
+        model-very-large-5k   & 6 & 384 & 512 & 12 & 5000 \\
+        model-extra-large-5k  & 8 & 512 & 512 & 16 & 5000 \\
         \hline
     \end{tabular}
 \caption{Model Size Configurations}
@@ -234,7 +243,7 @@
 \centering
 \begin{tikzpicture}
 \begin{axis}[
-    title={Forward Pass Time Across Model-1k Presets},
+    title={Forward Pass Time Across Model-5k Presets},
     ylabel={Time (s)},
     symbolic x coords={serial\_torch,parallel\_torch,serial\_cpp,parallel\_cpp},
     xtick=data,
@@ -253,7 +262,7 @@
 (serial\_cpp,1.2103)
 (parallel\_cpp,0.0932)
 };
-\addlegendentry{model-small-1k}
+\addlegendentry{model-small-5k}
 
 % model-medium-1k
 \addplot coordinates {
@@ -262,7 +271,7 @@
 (serial\_cpp,10.7280)
 (parallel\_cpp,0.1379)
 };
-\addlegendentry{model-medium-1k}
+\addlegendentry{model-medium-5k}
 
 % model-large-1k
 \addplot coordinates {
@@ -271,7 +280,7 @@
 (serial\_cpp,93.2595)
 (parallel\_cpp,0.3460)
 };
-\addlegendentry{model-large-1k}
+\addlegendentry{model-large-5k}
 
 % model-very-large-1k
 \addplot coordinates {
@@ -280,7 +289,7 @@
 (serial\_cpp,327.6338)
 (parallel\_cpp,0.7426)
 };
-\addlegendentry{model-very-large-1k}
+\addlegendentry{model-very-large-5k}
 
 % model-extra-large-1k
 \addplot coordinates {
@@ -289,7 +298,7 @@
 (serial\_cpp,779.8755)
 (parallel\_cpp,1.4909)
 };
-\addlegendentry{model-extra-large-1k}
+\addlegendentry{model-extra-large-5k}
 
 \end{axis}
 \end{tikzpicture}
@@ -302,11 +311,11 @@
     title={Parallel Speedup over Serial CPP Version (Model Size)},
     ylabel={Speedup (×)},
     symbolic x coords={
-        model-small-1k,
-        model-medium-1k,
-        model-large-1k,
-        model-very-large-1k,
-        model-extra-large-1k
+        model-small-5k,
+        model-medium-5k,
+        model-large-5k,
+        model-very-large-5k,
+        model-extra-large-5k
     },
     xtick=data,
     x tick label style={rotate=30,anchor=east},
@@ -316,11 +325,11 @@
 ]
 
 \addplot coordinates {
-(model-small-1k,6.22)
-(model-medium-1k,41.94)
-(model-large-1k,178.73)
-(model-very-large-1k,301.69)
-(model-extra-large-1k,371.79)
+(model-small-5k,6.22)
+(model-medium-5k,41.94)
+(model-large-5k,178.73)
+(model-very-large-5k,301.69)
+(model-extra-large-5k,371.79)
 };
 
 \end{axis}

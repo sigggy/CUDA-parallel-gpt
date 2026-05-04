@@ -21,7 +21,7 @@ venv/
 *.vrb
 
 
-serial_cpp_medium.trace/
+serial_cpp_*.trace/
 slides/project_presentation.nav
 slides/project_presentation.snm
 slides/project_presentation.synctex.gz

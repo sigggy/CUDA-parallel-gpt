@@ -3,7 +3,7 @@ CXX ?= c++
 CXXFLAGS ?= -std=c++17 -O3 -Wall -Wextra -pedantic
 
 # Profiling flags
-PROFILE_CXXFLAGS := -std=c++17 -O2 -g -fno-omit-frame-pointer -fno-inline-functions -Wall -Wextra -pedantic
+PROFILE_CXXFLAGS := -std=c++17 -O2 -g -fno-omit-frame-pointer -Wall -Wextra -pedantic
 
 # macOS Instruments
 #INSTRUMENTS_CXXFLAGS := -std=c++17 -O2 -g -fno-omit-frame-pointer -Wall -Wextra -pedantic

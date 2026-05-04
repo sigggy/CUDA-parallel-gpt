@@ -1,6 +1,87 @@
 \section{Parallelization Strategy}
 
 Using the \textit{perf time} command we were able to get high level timing characteristics of the program, especially how much time our program performing OS overhead versus useful compute work. With nearly zero system time (0.008s out of 2.74s total) and only 269 context switches, the program runs almost entirely in userspace with negligible OS overhead. An IPC of 3.06 with 0.999 CPUs utilized confirms the single core is saturated with compute for the full duration. Next, we used \textit{perf record} in order to perform a call stack analysis of where the program was spending its CPU time. 
-We found that \textbf{96.8\%} of runtime is spent in linear matrix multiplications, with \textbf{67.8\%} occurring in the MLP and \textbf{29\%} in attention. While attention is often considered the bottleneck in Transformer models, this aligns with our earlier complexity analysis, as the approximately constant sequence length causes the $d^2$ term to dominate, making the MLP the primary contributor to runtime.
+We found that \textbf{99.4\%} of runtime is spent in linear matrix multiplications, with \textbf{70.1\%} occurring in the MLP and \textbf{28.3\%} in attention (note the program spends around 0.4\% performing rmnsnorm, Softmax, and embedding operations). While attention is often considered the bottleneck in Transformer models, this aligns with our earlier complexity analysis, as the approximately constant sequence length causes the $d^2$ term to dominate, making the MLP the primary contributor to runtime.
 
-Based on the serial workload analysis, our parallelization strategy focuses on exposing more independent work to the GPU. The original \textit{microgpt} structure processes one name at a time and then one token at a time within that name. This creates very little parallel work per operation, especially because the names are short. To increase available parallelism, we batch multiple names together so each kernel operates over many sequences and token positions at once.
+Based on the serial workload analysis, our parallelization strategy focuses on exposing more independent work to the GPU. The original \textit{microgpt} structure processes one name at a time and then one token at a time within that name. 
+This creates very little parallel work per operation, especially because the names are short. To increase available parallelism, we batch multiple names together so each kernel operates over many sequences and token positions at once, as shown in Algorithm~\ref{alg:batched}. 
+We denote the batch size as $B = |\mathcal{B}|$ and represent each batch as a tensor of shape $(|\mathcal{B}|, T, d)$. To reduce CUDA kernel complexity, we preprocess the names into batches where all sequences in a batch have the same length.
+
+\begin{algorithm}[H]
+\caption{High-Level Batched Forward Pass}
+\label{alg:batched}
+\begin{algorithmic}
+\State $\text{loss} \gets 0$
+\State $\text{batches} \gets \text{CreateBatches}(\mathcal{D})$
+
+\For{each batch $\mathcal{B} \in \text{batches}$}
+    \State $X \gets \text{TokenEmbedding}(\mathcal{B}) + \text{PositionalEmbedding}(0{:}T-1)$
+    \State $X \gets \text{RMSNorm}(X)$
+
+    \For{$\ell = 1$ to $L$}
+        \State \textcolor{attncolor}{$X \gets X + \text{Attention}(\text{RMSNorm}(X))$} \textcolor{attncolor}{\Comment{independent per sequence}}
+        \State \textcolor{mlpcolor}{$X \gets X + \text{MLP}(\text{RMSNorm}(X))$} 
+    \EndFor
+
+    \State $Y \gets \text{Linear}(X)$
+    \State $\text{loss} \gets \text{loss} + \text{CrossEntropy}(Y, \text{Targets}(\mathcal{B}))$
+\EndFor
+
+\State $\text{loss} \gets \text{loss} / \text{total\_tokens}$
+\end{algorithmic}
+\end{algorithm}
+
+
+
+Our parallelization strategy focuses on exposing parallelism at the level of individual tensor elements and matrix tiles, rather than at the level of tokens or sequences. This allows each CUDA kernel to operate over $|B| \cdot T \cdot d$ elements simultaneously, significantly increasing available work per launch compared to the serial implementation.
+
+We achieve this by decomposing the forward pass into a sequence of CUDA kernels, each operating at a finer granularity over the batched tensor. Rather than treating attention and MLP as monolithic operations, we explicitly map each sub-operation (RMSNorm, linear projections, attention, and residual additions) to separate GPU kernels. This decomposition is shown in Algorithm~\ref{alg:layer}, where each step corresponds directly to a kernel launch in our implementation.
+\begin{algorithm}[H]
+\caption{Layer-by-Layer GPU Forward Pass}
+\label{alg:layer}
+\begin{algorithmic}
+\For{$\ell = 1$ to $L$}
+
+    \State \textcolor{attncolor}{$X_{\text{norm}} \gets \text{RMSNorm}(X)$} \textcolor{attncolor}{\Comment{\textbf{Attention Block}}}
+    \State \textcolor{attncolor}{$Q \gets \text{Linear}(X_{\text{norm}}, W_Q^{(\ell)})$}
+    \State \textcolor{attncolor}{$K^{(\ell)} \gets \text{Linear}(X_{\text{norm}}, W_K^{(\ell)})$}
+    \State \textcolor{attncolor}{$V^{(\ell)} \gets \text{Linear}(X_{\text{norm}}, W_V^{(\ell)})$}
+    \State \textcolor{attncolor}{$A \gets \text{SelfAttention}(Q, K^{(\ell)}, V^{(\ell)})$}
+    \State \textcolor{attncolor}{$A_{\text{proj}} \gets \text{Linear}(A, W_O^{(\ell)})$}
+    \State \textcolor{attncolor}{$X_{\text{mid}} \gets X + A_{\text{proj}}$}
+
+    \State \textcolor{mlpcolor}{$X_{\text{norm2}} \gets \text{RMSNorm}(X_{\text{mid}})$} \textcolor{mlpcolor}{\Comment{\textbf{MLP Block}}}
+    \State \textcolor{mlpcolor}{$H \gets \text{Linear}(X_{\text{norm2}}, W_1^{(\ell)})$}
+    \State \textcolor{mlpcolor}{$H \gets \text{ReLU}(H)$}
+    \State \textcolor{mlpcolor}{$H_{\text{proj}} \gets \text{Linear}(H, W_2^{(\ell)})$}
+    \State \textcolor{mlpcolor}{$X \gets X_{\text{mid}} + H_{\text{proj}}$}
+
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+Each operation in Algorithm~\ref{alg:layer} is implemented as a dedicated CUDA kernel, as summarized in Table~\ref{tab:kernels}.
+
+
+\begin{table}[h]
+\centering
+\begin{tabular}{l l l}
+\toprule
+\textbf{Operation} & \textbf{Thread Granularity} & \textbf{Description} \\
+\midrule
+Embedding + Positional & element $(B,T,d)$ & each thread loads one embedding value \\
+RMSNorm & token $(B, T)$ & each thread normalizes one token by looping over its $d$ values  \\
+SelfAttention & element $(B,T,d)$ & one thread computes one weighted scalar within its attn head \\
+Linear (Q, K, V, MLP) & element $(T,\text{out\_dim})$ & tiled matix mul, one thread owns one output cell \\
+ReLU & element $(B,T,d)$ & independent element-wise activation \\
+Vector Add & element $(B,T,d)$ & independent element-wise vector addition \\
+CrossEntropy & single thread & one thread loops over all $(B,T,\text{vocab})$ to compute cross-entropy \\
+\bottomrule
+\end{tabular}
+\caption{Kernel decomposition with thread granularity and execution details.}
+\label{tab:kernels}
+\end{table}
+
+From a systems perspective, the full model is transferred to the GPU once at initialization, while a reusable workspace is allocated once per batch. This avoids repeated host-device transfers and ensures that all intermediate activations remain resident on the GPU throughout the forward pass.
+
+With this strategy in place, we will next evaluate how effectively the batched GPU implementation reduces wall-clock time compared to serial and numpy baselines. 

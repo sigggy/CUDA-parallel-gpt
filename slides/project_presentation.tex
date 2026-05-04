@@ -176,9 +176,9 @@ sum_loss(tokens)
     \vspace{0.1cm}
     \textbf{Static Analysis:}
     \begin{itemize}
-        \item \textbf{96.8\%} of work spent doing matrix mult 
-        \item \textbf{67.8\%} for MLP \textbf{29\%} for ATTN  
-        \item By Amdahl’s Law, with $p = 0.968$, the theoretical maximum speedup is $\frac{1}{1 - p} \approx 31.25\times$
+        \item \textbf{99.4\%} of work spent doing matrix mult, (0.4\% for rmnsnorm, SM, emb)
+        \item \textbf{71.1\%} for MLP \textbf{28.3\%} for ATTN  
+        \item By Amdahl’s Law, with $p = 0.998$, the theoretical maximum speedup is $\frac{1}{1 - p} \approx 500\times$
     \end{itemize}
 \end{frame}
 

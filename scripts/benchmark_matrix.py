@@ -17,21 +17,21 @@ class BenchmarkRun:
 
 
 BENCHMARK_RUNS: tuple[BenchmarkRun, ...] = (
-    BenchmarkRun("small", n_layer=1, n_embd=64, block_size=64, n_head=4, steps=200),
-    BenchmarkRun("medium", n_layer=2, n_embd=128, block_size=64, n_head=8, steps=1000),
-    BenchmarkRun("large", n_layer=4, n_embd=256, block_size=128, n_head=8, steps=2500),
-    BenchmarkRun("very-large", n_layer=6, n_embd=384, block_size=128, n_head=12, steps=5000),
-    BenchmarkRun("extra-large", n_layer=8, n_embd=512, block_size=256, n_head=16, steps=10000),
-    BenchmarkRun("names-1k", n_layer=1, n_embd=64, block_size=64, n_head=4, steps=1000),
-    BenchmarkRun("names-5k", n_layer=1, n_embd=64, block_size=64, n_head=4, steps=5000),
-    BenchmarkRun("names-10k", n_layer=1, n_embd=64, block_size=64, n_head=4, steps=10000),
-    BenchmarkRun("names-20k", n_layer=2, n_embd=128, block_size=64, n_head=8, steps=20000),
-    BenchmarkRun("names-30k", n_layer=2, n_embd=128, block_size=64, n_head=8, steps=30000),
-    BenchmarkRun("model-small-1k", n_layer=1, n_embd=64, block_size=64, n_head=4, steps=1000),
-    BenchmarkRun("model-medium-1k", n_layer=2, n_embd=128, block_size=64, n_head=8, steps=1000),
-    BenchmarkRun("model-large-1k", n_layer=4, n_embd=256, block_size=128, n_head=8, steps=1000),
-    BenchmarkRun("model-very-large-1k", n_layer=6, n_embd=384, block_size=128, n_head=12, steps=1000),
-    BenchmarkRun("model-extra-large-1k", n_layer=8, n_embd=512, block_size=256, n_head=16, steps=1000),
+    BenchmarkRun("small", n_layer=1, n_embd=64, block_size=128, n_head=4, steps=200),
+    BenchmarkRun("medium", n_layer=2, n_embd=128, block_size=128, n_head=8, steps=1000),
+    BenchmarkRun("large", n_layer=4, n_embd=256, block_size=256, n_head=8, steps=2500),
+    BenchmarkRun("very-large", n_layer=6, n_embd=384, block_size=512, n_head=12, steps=5000),
+    BenchmarkRun("extra-large", n_layer=8, n_embd=512, block_size=512, n_head=16, steps=10000),
+    BenchmarkRun("names-1k", n_layer=1, n_embd=64, block_size=512, n_head=4, steps=1000),
+    BenchmarkRun("names-5k", n_layer=1, n_embd=64, block_size=512, n_head=4, steps=5000),
+    BenchmarkRun("names-10k", n_layer=1, n_embd=64, block_size=512, n_head=4, steps=10000),
+    BenchmarkRun("names-20k", n_layer=2, n_embd=128, block_size=512, n_head=8, steps=20000),
+    BenchmarkRun("names-30k", n_layer=2, n_embd=128, block_size=512, n_head=8, steps=30000),
+    BenchmarkRun("model-small-1k", n_layer=1, n_embd=64, block_size=512, n_head=4, steps=5000),
+    BenchmarkRun("model-medium-1k", n_layer=2, n_embd=128, block_size=512, n_head=8, steps=5000),
+    BenchmarkRun("model-large-1k", n_layer=4, n_embd=256, block_size=512, n_head=8, steps=5000),
+    BenchmarkRun("model-very-large-1k", n_layer=6, n_embd=384, block_size=512, n_head=12, steps=5000),
+    BenchmarkRun("model-extra-large-1k", n_layer=8, n_embd=512, block_size=512, n_head=16, steps=5000),
 )
 
 RUN_BY_LABEL = {run.label: run for run in BENCHMARK_RUNS}

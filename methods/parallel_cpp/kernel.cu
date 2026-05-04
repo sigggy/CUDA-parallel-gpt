@@ -9,7 +9,7 @@
 
 namespace {
 
-constexpr int kLinearTile = 32;
+constexpr int TILE_DIM = 32;
 
 void cuda_check(cudaError_t status, const char* action) {
     if (status != cudaSuccess) {
@@ -284,18 +284,40 @@ __global__ void linear_kernel(
     int out_dim,
     int in_dim
 ) {
-    const int row = blockIdx.x * blockDim.x + threadIdx.x; // token index
-    const int col = blockIdx.y * blockDim.y + threadIdx.y; // output neuron
+    __shared__ float input_s[TILE_DIM][TILE_DIM];
+    __shared__ float weight_s[TILE_DIM][TILE_DIM];
 
-    if (row >= total_tokens || col >= out_dim) return;
+    const int tx  = threadIdx.x;
+    const int ty  = threadIdx.y;
+    const int row = blockIdx.y * TILE_DIM + ty;
+    const int col = blockIdx.x * TILE_DIM + tx;
 
     float sum = 0.0f;
 
-    for (int k = 0; k < in_dim; ++k) {
-        sum += input[row * in_dim + k] * weights[col * in_dim + k];
+    for (int tile = 0; tile < (in_dim + TILE_DIM - 1) / TILE_DIM; ++tile) {
+        const int k_input  = tile * TILE_DIM + tx;
+        const int k_weight = tile * TILE_DIM + ty;
+
+        if (row < total_tokens && k_input < in_dim)
+            input_s[ty][tx] = input[row * in_dim + k_input];
+        else
+            input_s[ty][tx] = 0.0f;
+
+        if (col < out_dim && k_weight < in_dim)
+            weight_s[ty][tx] = weights[col * in_dim + k_weight];
+        else
+            weight_s[ty][tx] = 0.0f;
+
+        __syncthreads();
+
+        for (int k = 0; k < TILE_DIM; ++k)
+            sum += input_s[ty][k] * weight_s[k][tx];
+
+        __syncthreads();
     }
 
-    output[row * out_dim + col] = sum;
+    if (row < total_tokens && col < out_dim)
+        output[row * out_dim + col] = sum;
 }
 
 
@@ -473,10 +495,10 @@ void launch_linear(
 ) {
     const int total_tokens = batch_size * usable_seq_len;
 
-    dim3 block(16, 16);
+    dim3 block(TILE_DIM, TILE_DIM);
     dim3 grid(
-        (total_tokens + block.x - 1) / block.x,
-        (out_dim + block.y - 1) / block.y
+        (out_dim + block.x - 1) / block.x,
+        (total_tokens + block.y - 1) / block.y
     );
 
     linear_kernel<<<grid, block>>>(

@@ -686,6 +686,9 @@ KernelResult run_forward_batched(const DeviceModel& device_model, const BatchTok
     cuda_check(cudaDeviceSynchronize(), "synchronizing CUDA kernels");
     result.logits.resize(workspace.logits.count);
 
+    cudaMemcpy(result.logits.data(), workspace.logits.ptr, result.logits.size() * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&result.loss, workspace.loss.ptr, sizeof(float), cudaMemcpyDeviceToHost);
+
     free_workspace(&workspace);
     return result;
 }

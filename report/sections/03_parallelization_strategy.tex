@@ -1,2 +1,6 @@
 \section{Parallelization Strategy}
-Placeholder text.
+
+Using the \textit{perf time} command we were able to get high level timing characteristics of the program, especially how much time our program performing OS overhead versus useful compute work. With nearly zero system time (0.008s out of 2.74s total) and only 269 context switches, the program runs almost entirely in userspace with negligible OS overhead. An IPC of 3.06 with 0.999 CPUs utilized confirms the single core is saturated with compute for the full duration. Next, we used \textit{perf record} in order to perform a call stack analysis of where the program was spending its CPU time. 
+We found that \textbf{96.8\%} of runtime is spent in linear matrix multiplications, with \textbf{67.8\%} occurring in the MLP and \textbf{29\%} in attention. While attention is often considered the bottleneck in Transformer models, this aligns with our earlier complexity analysis, as the approximately constant sequence length causes the $d^2$ term to dominate, making the MLP the primary contributor to runtime.
+
+Based on the serial workload analysis, our parallelization strategy focuses on exposing more independent work to the GPU. The original \textit{microgpt} structure processes one name at a time and then one token at a time within that name. This creates very little parallel work per operation, especially because the names are short. To increase available parallelism, we batch multiple names together so each kernel operates over many sequences and token positions at once.

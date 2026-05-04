@@ -1,19 +1,28 @@
-\documentclass[11pt]{article}
+\documentclass[10pt]{article}
 
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{geometry}
 \usepackage{graphicx}
 \usepackage{hyperref}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{algorithmicx}
+\usepackage{parskip}
+\usepackage{enumitem}
+
 
 \geometry{margin=1in}
 \graphicspath{{figures/}}
 
 \input{macros}
 
-\title{Final Project Report}
-\author{Placeholder Author}
+\title{Parallelizing GPT-2 --- ``It works on my GPU''}
+
+\author{Siggy Sigler, Sam Abderholden, Dawson Matthews}
 \date{\today}
 
 \begin{document}
@@ -25,5 +34,10 @@
 \input{sections/04_performance_results}
 \input{sections/05_bottleneck_discussion}
 \input{sections/06_lessons_learned}
+
+\clearpage
+\nocite{karpathyMicrogpt2026,radfordLanguageModelsAre2019}
+\bibliographystyle{plain}
+\bibliography{references}
 
 \end{document}

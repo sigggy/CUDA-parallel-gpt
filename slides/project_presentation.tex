@@ -250,7 +250,7 @@ calc_loss(name_list)
             \begin{itemize}
                 \item For each sequence launch a transformer $\rightarrow$ run transformer on all sequences at once
             \end{itemize}
-        \item Store all of our information in a flattened array
+        \item Store all of our information in a flattened array (B, T, d)
             \begin{itemize}
                 \item Allows assignment of work easily by batch to threads
             \end{itemize}

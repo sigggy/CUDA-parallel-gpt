@@ -388,7 +388,7 @@ def run_benchmark(
     total_program_seconds = time.perf_counter() - benchmark_start
     print(
         "mode=benchmark "
-        "method=parallel_torch "
+        "method=batched_torch "
         f"device={device} "
         f"preset={label} "
         f"requested_steps={requested_steps} "
@@ -404,7 +404,7 @@ def run_benchmark(
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="parallel PyTorch benchmark scaffold")
+    parser = argparse.ArgumentParser(description="batched PyTorch benchmark scaffold")
     parser.add_argument("--mode", choices=["validate", "benchmark"], required=True)
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)

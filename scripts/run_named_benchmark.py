@@ -22,7 +22,7 @@ CUDA_METHODS = (
     "batching_float_tiled",
 )
 BUILD_METHODS = ("serial_cpp", *CUDA_METHODS)
-METHODS = ("serial_python", "serial_torch", "parallel_torch", *BUILD_METHODS)
+METHODS = ("serial_python", "unbatched_torch", "batched_torch", *BUILD_METHODS)
 
 
 def parse_args() -> argparse.Namespace:
@@ -54,14 +54,21 @@ def benchmark_command(method: str, preset: str, batch_size: int, device: str) ->
         "--n-head",
         str(run.n_head),
     ]
-    if method in {"serial_torch", "parallel_torch"}:
+    if method in {"unbatched_torch", "batched_torch"}:
         command.extend(["--device", device])
-    if method == "parallel_torch" or method in CUDA_METHODS:
+    if method == "batched_torch" or method in CUDA_METHODS:
         command.extend(["--batch-size", str(batch_size)])
     if method in BUILD_METHODS:
         return [str(BUILD_DIR / method), *command]
-    script_name = "parallel.py" if method == "parallel_torch" else "serial.py"
-    script_dir = "parallel_torch" if method == "parallel_torch" else method
+    if method == "batched_torch":
+        script_name = "parallel.py"
+        script_dir = "parallel_torch"
+    elif method == "unbatched_torch":
+        script_name = "serial.py"
+        script_dir = "serial_torch"
+    else:
+        script_name = "serial.py"
+        script_dir = method
     return [sys.executable, str(ROOT_DIR / "methods" / script_dir / script_name), *command]
 
 

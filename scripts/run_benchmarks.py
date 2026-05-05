@@ -20,7 +20,7 @@ BUILD_DIR = ROOT_DIR / "build"
 DATASET = ROOT_DIR / "training_data" / "datasets" / "names.txt"
 FIXTURE_DIR = ROOT_DIR / "training_data" / "fixtures" / "small_case"
 DEFAULT_OUTPUT = ROOT_DIR / "benchmark_results.json"
-METHODS = ("serial_python", "serial_torch", "parallel_torch", "serial_cpp", "parallel_cpp")
+METHODS = ("serial_python", "unbatched_torch", "batched_torch", "serial_cpp", "parallel_cpp")
 DEFAULT_BATCH_SIZE = "512"
 RUN_DETAILS = run_details()
 
@@ -311,7 +311,7 @@ def run_validate_method(method: str) -> CommandResult:
                 "validate",
             ]
         )
-    if method == "serial_torch":
+    if method == "unbatched_torch":
         return run_command(
             [
                 sys.executable,
@@ -320,7 +320,7 @@ def run_validate_method(method: str) -> CommandResult:
                 "validate",
             ]
         )
-    if method == "parallel_torch":
+    if method == "batched_torch":
         return run_command(
             [
                 sys.executable,
@@ -356,7 +356,7 @@ def benchmark_command(method: str, run: BenchmarkRun) -> list[str]:
         "--n-head",
         str(run.n_head),
     ]
-    if method == "parallel_torch" or method == "parallel_cpp":
+    if method == "batched_torch" or method == "parallel_cpp":
         command.extend(["--batch-size", DEFAULT_BATCH_SIZE])
     return command
 
@@ -371,7 +371,7 @@ def run_benchmark_method(method: str, run: BenchmarkRun) -> CommandResult:
                 *command,
             ]
         )
-    if method == "serial_torch":
+    if method == "unbatched_torch":
         return run_command(
             [
                 sys.executable,
@@ -379,7 +379,7 @@ def run_benchmark_method(method: str, run: BenchmarkRun) -> CommandResult:
                 *command,
             ]
         )
-    if method == "parallel_torch":
+    if method == "batched_torch":
         return run_command(
             [
                 sys.executable,

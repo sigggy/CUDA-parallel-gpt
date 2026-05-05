@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -28,6 +29,8 @@ CUDA_METHODS = (
 METHODS = ("serial_cpp", *CUDA_METHODS)
 DEFAULT_BATCH_SIZE = "512"
 RUN_DETAILS = run_details()
+NAMES_PRESET_PATTERN = re.compile(r"^names-")
+ABLATION_RUNS = tuple(run for run in BENCHMARK_RUNS if NAMES_PRESET_PATTERN.match(run.label))
 
 
 @dataclass
@@ -72,7 +75,7 @@ def write_results(output_path: Path, results: dict[str, object]) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="run the CUDA ablation sweep")
+    parser = argparse.ArgumentParser(description="run the CUDA ablation sweep on names-only presets")
     parser.add_argument(
         "output",
         nargs="?",
@@ -155,7 +158,7 @@ def baseline_seconds(
 
 def render_preset_info() -> str:
     rows = []
-    for run in BENCHMARK_RUNS:
+    for run in ABLATION_RUNS:
         rows.append(
             "<tr>"
             f"<td>{html_escape(run.label)}</td>"
@@ -172,7 +175,7 @@ def render_preset_info() -> str:
 def render_benchmark_rows(results: dict[str, object]) -> str:
     lookup = benchmark_lookup(results)
     rows = []
-    for run in BENCHMARK_RUNS:
+    for run in ABLATION_RUNS:
         preset = run.label
         rows.append(
             "<tr class=\"preset-row\">"
@@ -345,6 +348,9 @@ def run_benchmark_method(method: str, run: BenchmarkRun, batch_size: int) -> Com
 
 
 def main() -> int:
+    if not ABLATION_RUNS:
+        raise RuntimeError("no names-* presets found in benchmark_matrix.py")
+
     args = parse_args()
     output_path = args.output.resolve()
     html_output_path = (
@@ -354,7 +360,7 @@ def main() -> int:
     results: dict[str, object] = {
         "dataset": str(DATASET),
         "fixture_dir": str(FIXTURE_DIR),
-        "presets": RUN_DETAILS,
+        "presets": {run.label: RUN_DETAILS[run.label] for run in ABLATION_RUNS},
         "build": {},
         "validate": {},
         "benchmarks": [],
@@ -414,7 +420,7 @@ def main() -> int:
         print(f"validate {method}: {results['validate'][method]['status']}", flush=True)
         write_results(output_path, results)
 
-    for run in BENCHMARK_RUNS:
+    for run in ABLATION_RUNS:
         preset = run.label
         for method in METHODS:
             if not valid_methods.get(method, False):

@@ -13,7 +13,16 @@ from benchmark_matrix import METHOD_RUN_FILTERS, RUN_BY_LABEL
 ROOT_DIR = Path(__file__).resolve().parents[1]
 BUILD_DIR = ROOT_DIR / "build"
 DATASET = ROOT_DIR / "training_data" / "datasets" / "names.txt"
-METHODS = ("serial_python", "serial_torch", "parallel_torch", "serial_cpp", "parallel_cpp")
+CUDA_METHODS = (
+    "parallel_cpp",
+    "baseline_cuda",
+    "batching_only",
+    "float_only",
+    "tiled_matmul_only",
+    "batching_float_tiled",
+)
+BUILD_METHODS = ("serial_cpp", *CUDA_METHODS)
+METHODS = ("serial_python", "serial_torch", "parallel_torch", *BUILD_METHODS)
 
 
 def parse_args() -> argparse.Namespace:
@@ -47,9 +56,9 @@ def benchmark_command(method: str, preset: str, batch_size: int, device: str) ->
     ]
     if method in {"serial_torch", "parallel_torch"}:
         command.extend(["--device", device])
-    if method in {"parallel_torch", "parallel_cpp"}:
+    if method == "parallel_torch" or method in CUDA_METHODS:
         command.extend(["--batch-size", str(batch_size)])
-    if method.endswith("_cpp"):
+    if method in BUILD_METHODS:
         return [str(BUILD_DIR / method), *command]
     script_name = "parallel.py" if method == "parallel_torch" else "serial.py"
     script_dir = "parallel_torch" if method == "parallel_torch" else method

@@ -18,7 +18,14 @@ BUILD_DIR = ROOT_DIR / "build"
 DATASET = ROOT_DIR / "training_data" / "datasets" / "names.txt"
 FIXTURE_DIR = ROOT_DIR / "training_data" / "fixtures" / "small_case"
 DEFAULT_OUTPUT = ROOT_DIR / "cuda_linear_ablation_results.json"
-METHODS = ("serial_cpp", "parallel_cpp_untiled", "parallel_cpp")
+CUDA_METHODS = (
+    "baseline_cuda",
+    "batching_only",
+    "float_only",
+    "tiled_matmul_only",
+    "batching_float_tiled",
+)
+METHODS = ("serial_cpp", *CUDA_METHODS)
 DEFAULT_BATCH_SIZE = "512"
 RUN_DETAILS = run_details()
 
@@ -65,7 +72,7 @@ def write_results(output_path: Path, results: dict[str, object]) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="run the CUDA linear-kernel ablation sweep")
+    parser = argparse.ArgumentParser(description="run the CUDA ablation sweep")
     parser.add_argument(
         "output",
         nargs="?",
@@ -83,7 +90,7 @@ def parse_args() -> argparse.Namespace:
         "--batch-size",
         type=int,
         default=int(DEFAULT_BATCH_SIZE),
-        help="batch size for both CUDA methods",
+        help="requested batch size for CUDA methods",
     )
     return parser.parse_args()
 
@@ -173,7 +180,7 @@ def render_benchmark_rows(results: dict[str, object]) -> str:
             "</tr>"
         )
         serial_seconds = baseline_seconds(lookup, preset, "serial_cpp")
-        untiled_seconds = baseline_seconds(lookup, preset, "parallel_cpp_untiled")
+        baseline_cuda_seconds = baseline_seconds(lookup, preset, "baseline_cuda")
         for method in METHODS:
             entry = lookup.get((preset, method))
             if entry is None:
@@ -207,7 +214,7 @@ def render_benchmark_rows(results: dict[str, object]) -> str:
                 f"<td>{format_decimal(parsed.get('forward_pass_seconds_cumulative'), 4)}</td>"
                 f"<td>{format_decimal(total_seconds, 4)}</td>"
                 f"<td>{format_speedup(serial_seconds, total_seconds)}</td>"
-                f"<td>{format_speedup(untiled_seconds, total_seconds)}</td>"
+                f"<td>{format_speedup(baseline_cuda_seconds, total_seconds)}</td>"
                 "</tr>"
             )
     return "\n".join(rows)
@@ -219,7 +226,7 @@ def write_html_report(output_path: Path, results: dict[str, object], batch_size:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CUDA Linear Ablation</title>
+  <title>CUDA Ablation</title>
   <style>
     body {{
       color: #1f2933;
@@ -260,7 +267,7 @@ def write_html_report(output_path: Path, results: dict[str, object], batch_size:
   </style>
 </head>
 <body>
-  <h1>CUDA Linear Ablation</h1>
+  <h1>CUDA Ablation</h1>
   <p class="meta">Dataset: {html_escape(results.get("dataset", ""))}<br>CUDA batch size: {batch_size}</p>
 
   <h2>Preset Info</h2>
@@ -292,7 +299,7 @@ def write_html_report(output_path: Path, results: dict[str, object], batch_size:
         <th>Fwd pass (s)</th>
         <th>Total (s)</th>
         <th>vs serial_cpp</th>
-        <th>vs untiled</th>
+        <th>vs baseline_cuda</th>
       </tr>
     </thead>
     <tbody>
@@ -328,7 +335,7 @@ def benchmark_command(method: str, run: BenchmarkRun, batch_size: int) -> list[s
         "--n-head",
         str(run.n_head),
     ]
-    if method != "serial_cpp":
+    if method in CUDA_METHODS:
         command.extend(["--batch-size", str(batch_size)])
     return [str(BUILD_DIR / method), *command]
 
@@ -359,19 +366,19 @@ def main() -> int:
         str(ROOT_DIR),
         "fixtures",
         "build/serial_cpp",
-        "build/parallel_cpp_untiled",
-        "build/parallel_cpp",
+        "build/baseline_cuda",
+        "build/batching_only",
+        "build/float_only",
+        "build/tiled_matmul_only",
+        "build/batching_float_tiled",
     ]
     if shutil.which("nvcc") is None:
         results["build"] = {
-            "parallel_cpp_untiled": {
+            method: {
                 "status": "skipped",
                 "reason": "nvcc not found on PATH",
-            },
-            "parallel_cpp": {
-                "status": "skipped",
-                "reason": "nvcc not found on PATH",
-            },
+            }
+            for method in CUDA_METHODS
         }
         print("build CUDA methods: skipped, nvcc not found on PATH", flush=True)
         write_results(output_path, results)

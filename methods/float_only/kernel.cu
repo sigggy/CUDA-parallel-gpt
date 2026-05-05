@@ -276,7 +276,7 @@ __global__ void rmsnorm_kernel(
 }
 
 
-__global__ void linaer_kernel(
+__global__ void linear_kernel(
     const float* input,
     const float* weights,
     float* output,
@@ -319,6 +319,33 @@ __global__ void linaer_kernel(
     if (row < total_tokens && col < out_dim)
         output[row * out_dim + col] = sum;
 }
+
+__global__ void linear_kernel_untiled(
+    const float* input,
+    const float* weights,
+    float* output,
+    int total_tokens,
+    int out_dim,
+    int in_dim
+) {
+    const int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    const int total_outputs = total_tokens * out_dim;
+    if (idx >= total_outputs) {
+        return;
+    }
+
+    const int row = idx / out_dim;
+    const int col = idx % out_dim;
+
+    float sum = 0.0f;
+    for (int in = 0; in < in_dim; ++in) {
+        sum += input[row * in_dim + in] * weights[col * in_dim + in];
+    }
+
+    output[row * out_dim + col] = sum;
+}
+
+
 
 __global__ void relu_kernel(
     float* input,
@@ -492,18 +519,20 @@ void launch_linear(
     int usable_seq_len
 ) {
     const int total_tokens = batch_size * usable_seq_len;
-    dim3 block(TILE_DIM, TILE_DIM);
-    dim3 grid(
-        (out_dim + block.x - 1) / block.x,
-        (total_tokens + block.y - 1) / block.y
+    const auto launch = make_1d_launch(
+        static_cast<std::size_t>(total_tokens) * static_cast<std::size_t>(out_dim)
     );
 
-    linaer_kernel<<<grid, block>>>(
-        input, weights, output,
-        total_tokens, out_dim, in_dim
+    linear_kernel_untiled<<<launch.blocks, launch.threads>>>(
+        input,
+        weights,
+        output,
+        total_tokens,
+        out_dim,
+        in_dim
     );
 
-    cuda_check(cudaGetLastError(), "launching linaer_kernel");
+    cuda_check(cudaGetLastError(), "launching linear_untiled_kernel");
 }
 
 

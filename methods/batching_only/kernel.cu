@@ -124,22 +124,22 @@ void free_model(DeviceModel* device_model) {
     free_buffer(&device_model->wpe);
     free_buffer(&device_model->lm_head);
 
-    for (DeviceBuffer<float>& buffer : device_model->attn_wq) {
+    for (DeviceBuffer<double>& buffer : device_model->attn_wq) {
         free_buffer(&buffer);
     }
-    for (DeviceBuffer<float>& buffer : device_model->attn_wk) {
+    for (DeviceBuffer<double>& buffer : device_model->attn_wk) {
         free_buffer(&buffer);
     }
-    for (DeviceBuffer<float>& buffer : device_model->attn_wv) {
+    for (DeviceBuffer<double>& buffer : device_model->attn_wv) {
         free_buffer(&buffer);
     }
-    for (DeviceBuffer<float>& buffer : device_model->attn_wo) {
+    for (DeviceBuffer<double>& buffer : device_model->attn_wo) {
         free_buffer(&buffer);
     }
-    for (DeviceBuffer<float>& buffer : device_model->mlp_fc1) {
+    for (DeviceBuffer<double>& buffer : device_model->mlp_fc1) {
         free_buffer(&buffer);
     }
-    for (DeviceBuffer<float>& buffer : device_model->mlp_fc2) {
+    for (DeviceBuffer<double>& buffer : device_model->mlp_fc2) {
         free_buffer(&buffer);
     }
 
@@ -207,9 +207,9 @@ void free_workspace(DeviceWorkspace* workspace) {
 
 __global__ void embedding_lookup_kernel(
     const int* tokens,
-    const float* wte,
-    const float* wpe,
-    float* embeddings,
+    const double* wte,
+    const double* wpe,
+    double* embeddings,
     int batch_size,
     int batch_seq_length,
     int usable_seq_len,
@@ -228,15 +228,15 @@ __global__ void embedding_lookup_kernel(
     const int token_idx = batch_idx * batch_seq_length + pos;
     const int token_id = tokens[token_idx];
 
-    const float token_val = wte[token_id * n_embd + col];
-    const float pos_val = wpe[pos * n_embd + col];
+    const double token_val = wte[token_id * n_embd + col];
+    const double pos_val = wpe[pos * n_embd + col];
     embeddings[idx] = token_val + pos_val;
 }
 
 __global__ void add_vec_kernel(
-    const float* left,
-    const float* right,
-    float* output,
+    const double* left,
+    const double* right,
+    double* output,
     const int n
 ) {
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -246,8 +246,8 @@ __global__ void add_vec_kernel(
 }
 
 __global__ void rmsnorm_kernel(
-    const float* input,
-    float* output,
+    const double* input,
+    double* output,
     int n_embd,
     int useable_seq_len, 
     int num_batches
@@ -259,16 +259,16 @@ __global__ void rmsnorm_kernel(
 
     int start = idx * n_embd;
 
-    float mean_square = 0.0f;
+    double mean_square = 0.0;
 
     for (int i = 0; i < n_embd; i++) {
-        float value = input[start + i];
+        double value = input[start + i];
         mean_square += value * value;
     }
 
-    mean_square /= static_cast<float>(n_embd);
+    mean_square /= static_cast<double>(n_embd);
 
-    float scale = 1.0f / sqrtf(mean_square + 1e-5f);
+    double scale = 1.0 / sqrt(mean_square + 1e-5);
 
     for (int i = 0; i < n_embd; i++) {
         output[start + i] = input[start + i] * scale;
@@ -276,23 +276,23 @@ __global__ void rmsnorm_kernel(
 }
 
 
-__global__ void linaer_kernel(
-    const float* input,
-    const float* weights,
-    float* output,
+__global__ void linear_kernel(
+    const double* input,
+    const double* weights,
+    double* output,
     int total_tokens,
     int out_dim,
     int in_dim
 ) {
-    __shared__ float input_s[TILE_DIM][TILE_DIM];
-    __shared__ float weight_s[TILE_DIM][TILE_DIM];
+    __shared__ double input_s[TILE_DIM][TILE_DIM];
+    __shared__ double weight_s[TILE_DIM][TILE_DIM];
 
     const int tx  = threadIdx.x;
     const int ty  = threadIdx.y;
     const int row = blockIdx.y * TILE_DIM + ty;
     const int col = blockIdx.x * TILE_DIM + tx;
 
-    float sum = 0.0f;
+    double sum = 0.0;
 
     for (int tile = 0; tile < (in_dim + TILE_DIM - 1) / TILE_DIM; ++tile) {
         const int k_input  = tile * TILE_DIM + tx;
@@ -301,12 +301,12 @@ __global__ void linaer_kernel(
         if (row < total_tokens && k_input < in_dim)
             input_s[ty][tx] = input[row * in_dim + k_input];
         else
-            input_s[ty][tx] = 0.0f;
+            input_s[ty][tx] = 0.0;
 
         if (col < out_dim && k_weight < in_dim)
             weight_s[ty][tx] = weights[col * in_dim + k_weight];
         else
-            weight_s[ty][tx] = 0.0f;
+            weight_s[ty][tx] = 0.0;
 
         __syncthreads();
 
@@ -320,8 +320,35 @@ __global__ void linaer_kernel(
         output[row * out_dim + col] = sum;
 }
 
+__global__ void linear_kernel_untiled(
+    const double* input,
+    const double* weights,
+    double* output,
+    int total_tokens,
+    int out_dim,
+    int in_dim
+) {
+    const int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    const int total_outputs = total_tokens * out_dim;
+    if (idx >= total_outputs) {
+        return;
+    }
+
+    const int row = idx / out_dim;
+    const int col = idx % out_dim;
+
+    double sum = 0.0;
+    for (int in = 0; in < in_dim; ++in) {
+        sum += input[row * in_dim + in] * weights[col * in_dim + in];
+    }
+
+    output[row * out_dim + col] = sum;
+}
+
+
+
 __global__ void relu_kernel(
-    float* input,
+    double* input,
     int n
 ) {
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -330,14 +357,14 @@ __global__ void relu_kernel(
 
     if (input[idx] >= 0) return; 
 
-    input[idx] = 0.0f; 
+    input[idx] = 0.0; 
 }
 
 __global__ void self_attn_kernel(
-    const float* q,
-    const float* k_layer,
-    const float* v_layer,
-    float* attn_out,
+    const double* q,
+    const double* k_layer,
+    const double* v_layer,
+    double* attn_out,
     int batch_size,
     int usable_seq_len,
     int n_head,
@@ -358,43 +385,43 @@ __global__ void self_attn_kernel(
     const int token_start = sequence_start + token_pos * n_embd;
     const int head = col / head_dim;
     const int head_start = head * head_dim;
-    const float scale = 1.0f / sqrtf(static_cast<float>(head_dim));
+    const double scale = 1.0 / sqrt(static_cast<double>(head_dim));
 
     if (head >= n_head) {
         return;
     }
 
-    float max_logit = -INFINITY;
+    double max_logit = -INFINITY;
     for (int t = 0; t <= token_pos; ++t) {
         const int past_start = sequence_start + t * n_embd;
-        float dot = 0.0f;
+        double dot = 0.0;
         for (int j = 0; j < head_dim; ++j) {
             dot += q[token_start + head_start + j] * k_layer[past_start + head_start + j];
         }
-        const float score = dot * scale;
+        const double score = dot * scale;
         if (score > max_logit) {
             max_logit = score;
         }
     }
 
-    float exp_sum = 0.0f;
+    double exp_sum = 0.0;
     for (int t = 0; t <= token_pos; ++t) {
         const int past_start = sequence_start + t * n_embd;
-        float dot = 0.0f;
+        double dot = 0.0;
         for (int j = 0; j < head_dim; ++j) {
             dot += q[token_start + head_start + j] * k_layer[past_start + head_start + j];
         }
-        exp_sum += expf(dot * scale - max_logit);
+        exp_sum += exp(dot * scale - max_logit);
     }
 
-    float weighted_value = 0.0f;
+    double weighted_value = 0.0;
     for (int t = 0; t <= token_pos; ++t) {
         const int past_start = sequence_start + t * n_embd;
-        float dot = 0.0f;
+        double dot = 0.0;
         for (int j = 0; j < head_dim; ++j) {
             dot += q[token_start + head_start + j] * k_layer[past_start + head_start + j];
         }
-        const float weight = expf(dot * scale - max_logit) / exp_sum;
+        const double weight = exp(dot * scale - max_logit) / exp_sum;
         weighted_value += weight * v_layer[past_start + col];
     }
 
@@ -403,8 +430,8 @@ __global__ void self_attn_kernel(
 
 
 __global__ void cross_entropy_loss_kernel(
-    const float* logits,
-    float* loss,
+    const double* logits,
+    double* loss,
     const int* tokens,
     int batch_size,
     int batch_seq_length,
@@ -415,27 +442,27 @@ __global__ void cross_entropy_loss_kernel(
         return;
     }
 
-    float total_loss = 0.0f;
+    double total_loss = 0.0;
     for (int batch_idx = 0; batch_idx < batch_size; ++batch_idx) {
         for (int pos = 0; pos < usable_seq_len; ++pos) {
             const int logits_start = (batch_idx * usable_seq_len + pos) * vocab_size;
             const int target_token = tokens[batch_idx * batch_seq_length + pos + 1];
-            float max_logit = logits[logits_start];
+            double max_logit = logits[logits_start];
             for (int vocab_idx = 1; vocab_idx < vocab_size; ++vocab_idx) {
-                const float value = logits[logits_start + vocab_idx];
+                const double value = logits[logits_start + vocab_idx];
                 if (value > max_logit) {
                     max_logit = value;
                 }
             }
 
-            float exp_sum = 0.0f;
+            double exp_sum = 0.0;
             for (int vocab_idx = 0; vocab_idx < vocab_size; ++vocab_idx) {
-                exp_sum += expf(logits[logits_start + vocab_idx] - max_logit);
+                exp_sum += exp(logits[logits_start + vocab_idx] - max_logit);
             }
-            total_loss += logf(exp_sum) + max_logit - logits[logits_start + target_token];
+            total_loss += log(exp_sum) + max_logit - logits[logits_start + target_token];
         }
     }
-    *loss = total_loss / static_cast<float>(batch_size * usable_seq_len);
+    *loss = total_loss / static_cast<double>(batch_size * usable_seq_len);
 }
 
 void launch_embedding(const DeviceModel& device_model, DeviceWorkspace* workspace, const ModelConfig& config, const BatchTokens& batch) {
@@ -459,8 +486,8 @@ void launch_embedding(const DeviceModel& device_model, DeviceWorkspace* workspac
 
 
 void launch_rmsnorm(
-    const float* input,
-    float* output,
+    const double* input,
+    double* output,
     int n_embd,
     int batch_size,
     int usable_seq_len
@@ -483,35 +510,37 @@ void launch_rmsnorm(
 
 
 void launch_linear(
-    const float* input,
-    float* output,
-    const float* weights, 
+    const double* input,
+    double* output,
+    const double* weights, 
     int in_dim, 
     int out_dim, 
     int batch_size,
     int usable_seq_len
 ) {
     const int total_tokens = batch_size * usable_seq_len;
-    dim3 block(TILE_DIM, TILE_DIM);
-    dim3 grid(
-        (out_dim + block.x - 1) / block.x,
-        (total_tokens + block.y - 1) / block.y
+    const auto launch = make_1d_launch(
+        static_cast<std::size_t>(total_tokens) * static_cast<std::size_t>(out_dim)
     );
 
-    linaer_kernel<<<grid, block>>>(
-        input, weights, output,
-        total_tokens, out_dim, in_dim
+    linear_kernel_untiled<<<launch.blocks, launch.threads>>>(
+        input,
+        weights,
+        output,
+        total_tokens,
+        out_dim,
+        in_dim
     );
 
-    cuda_check(cudaGetLastError(), "launching linaer_kernel");
+    cuda_check(cudaGetLastError(), "launching linear_untiled_kernel");
 }
 
 
 void launch_self_attn(
-    const float* q,
-    const float* k_layer,
-    const float* v_layer,
-    float* attn_out,
+    const double* q,
+    const double* k_layer,
+    const double* v_layer,
+    double* attn_out,
     int batch_size,
     int usable_seq_len,
     int n_head,
@@ -541,9 +570,9 @@ void launch_self_attn(
 
 
 void launch_vec_add(
-    const float* left,
-    const float* right,
-    float* output,
+    const double* left,
+    const double* right,
+    double* output,
     const int n
 ) {
     const auto launch = make_1d_launch(
@@ -562,7 +591,7 @@ void launch_vec_add(
 
 
 void launch_relu(
-    float* input, 
+    double* input, 
     int size
 ) {
     const auto launch = make_1d_launch(
@@ -610,8 +639,8 @@ void launch_transformer(const DeviceModel& device_model, DeviceWorkspace* worksp
         launch_linear(workspace->norm.ptr, workspace->q.ptr, device_model.attn_wq[layer_idx].ptr, config.n_embd, config.n_embd, batch.batch_size, usable_seq_len);
         
         //* Find the layer in the cache 
-        float* k_layer = workspace->k_cache.ptr + layer_idx * batch.batch_size * usable_seq_len * config.n_embd;
-        float* v_layer = workspace->v_cache.ptr + layer_idx * batch.batch_size * usable_seq_len * config.n_embd;
+        double* k_layer = workspace->k_cache.ptr + layer_idx * batch.batch_size * usable_seq_len * config.n_embd;
+        double* v_layer = workspace->v_cache.ptr + layer_idx * batch.batch_size * usable_seq_len * config.n_embd;
         
         launch_linear(workspace->norm.ptr, k_layer, device_model.attn_wk[layer_idx].ptr, config.n_embd, config.n_embd, batch.batch_size, usable_seq_len);
         launch_linear(workspace->norm.ptr, v_layer, device_model.attn_wv[layer_idx].ptr, config.n_embd, config.n_embd, batch.batch_size, usable_seq_len);
@@ -683,8 +712,8 @@ KernelResult run_forward_batched(const DeviceModel& device_model, const BatchTok
     cuda_check(cudaDeviceSynchronize(), "synchronizing CUDA kernels");
     result.logits.resize(workspace.logits.count);
 
-    cudaMemcpy(result.logits.data(), workspace.logits.ptr, result.logits.size() * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(&result.loss, workspace.loss.ptr, sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(result.logits.data(), workspace.logits.ptr, result.logits.size() * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&result.loss, workspace.loss.ptr, sizeof(double), cudaMemcpyDeviceToHost);
 
     free_workspace(&workspace);
     return result;

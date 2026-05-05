@@ -200,17 +200,9 @@ build/parallel_cpp \
   --batch-size 6
 ```
 
-### Run the full benchmark sweep
-
-This rebuilds, regenerates fixtures, validates all methods, then times each valid method once.
-
-```bash
-bash scripts/run_benchmarks.sh
-```
-
 ### Run the Python benchmark driver
 
-The Python benchmark driver writes structured results to JSON as it goes, writes an HTML report when the full sweep finishes, and skips unavailable optional methods such as CUDA or PyTorch when their dependencies are missing.
+This is the full benchmark entrypoint. It rebuilds the required binaries, regenerates fixtures, validates all methods, writes structured results to JSON as it goes, writes an HTML report when the full sweep finishes, and skips unavailable optional methods such as CUDA or PyTorch when their dependencies are missing.
 
 ```bash
 python3 scripts/run_benchmarks.py
@@ -266,7 +258,7 @@ The Python version is the reference implementation. It is used to generate deter
 
 Those files live in `training_data/fixtures/small_case/`. Validation works by loading the fixture weights, running the method’s forward pass on the fixed token sequence from the manifest, and comparing the outputs against the Python ground truth within an epsilon.
 
-Benchmarking keeps the GPT-style data flow without the training update. Each executable loads the dataset, builds the vocabulary, initializes weights from the fixed seed, and then processes the first `k` names in dataset order, where `k` is the preset size or `--num-steps`. The serial methods run one tokenized name at a time. The batched PyTorch and CUDA methods tokenize the selected names up front, greedily group them by equal token sequence length into batches of up to `--batch-size`, then loop over the resulting batch array. The outer script uses `/usr/bin/time -p` and reports the raw wall-clock `real` time from one run. This means timing includes process startup and dataset loading for every method equally.
+Benchmarking keeps the GPT-style data flow without the training update. Each executable loads the dataset, builds the vocabulary, initializes weights from the fixed seed, and then processes the first `k` names in dataset order, where `k` is the preset size or `--num-steps`. The serial methods run one tokenized name at a time. The batched PyTorch and CUDA methods tokenize the selected names up front, greedily group them by equal token sequence length into batches of up to `--batch-size`, then loop over the resulting batch array. Each method reports its own `total_program_seconds`, and the benchmark driver records that value. This means timing includes process startup and dataset loading for every method equally.
 
 The current methods are:
 

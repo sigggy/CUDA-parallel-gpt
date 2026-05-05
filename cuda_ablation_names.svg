@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="820" viewBox="0 0 1280 820">
+<rect x="0" y="0" width="1280" height="820" fill="white" />
+<text x="110" y="44" font-size="28" font-weight="700" font-family="Helvetica, Arial, sans-serif" fill="#111827">CUDA Ablation Across Increasing Name Counts</text>
+<text x="110" y="72" font-size="16" font-family="Helvetica, Arial, sans-serif" fill="#4b5563">Fixed model: n_layer=4, n_embd=128, block_size=512, n_head=8</text>
+<line x1="110" y1="710.00" x2="1000" y2="710.00" stroke="#e5e7eb" stroke-width="1" />
+<text x="98" y="715.00" text-anchor="end" font-size="13" font-family="Helvetica, Arial, sans-serif" fill="#374151">0.100</text>
+<line x1="110" y1="560.00" x2="1000" y2="560.00" stroke="#e5e7eb" stroke-width="1" />
+<text x="98" y="565.00" text-anchor="end" font-size="13" font-family="Helvetica, Arial, sans-serif" fill="#374151">1.00</text>
+<line x1="110" y1="410.00" x2="1000" y2="410.00" stroke="#e5e7eb" stroke-width="1" />
+<text x="98" y="415.00" text-anchor="end" font-size="13" font-family="Helvetica, Arial, sans-serif" fill="#374151">10.0</text>
+<line x1="110" y1="260.00" x2="1000" y2="260.00" stroke="#e5e7eb" stroke-width="1" />
+<text x="98" y="265.00" text-anchor="end" font-size="13" font-family="Helvetica, Arial, sans-serif" fill="#374151">100</text>
+<line x1="110" y1="110.00" x2="1000" y2="110.00" stroke="#e5e7eb" stroke-width="1" />
+<text x="98" y="115.00" text-anchor="end" font-size="13" font-family="Helvetica, Arial, sans-serif" fill="#374151">1000</text>
+<line x1="110.00" y1="110" x2="110.00" y2="710" stroke="#f3f4f6" stroke-width="1" />
+<text x="110.00" y="732" text-anchor="end" transform="rotate(-35 110.00 732)" font-size="12" font-family="Helvetica, Arial, sans-serif" fill="#374151">1k</text>
+<line x1="138.71" y1="110" x2="138.71" y2="710" stroke="#f3f4f6" stroke-width="1" />
+<text x="138.71" y="732" text-anchor="end" transform="rotate(-35 138.71 732)" font-size="12" font-family="Helvetica, Arial, sans-serif" fill="#374151">2k</text>
+<line x1="167.42" y1="110" x2="167.42" y2="710" stroke="#f3f4f6" stroke-width="1" />
+<text x="167.42" y="732" text-anchor="end" transform="rotate(-35 167.42 732)" font-size="12" font-family="Helvetica, Arial, sans-serif" fill="#374151">3k</text>
+<line x1="196.13" y1="110" x2="196.13" y2="710" stroke="#f3f4f6" stroke-width="1" />
+<text x="196.13" y="732" text-anchor="end" transform="rotate(-35 196.13 732)" font-size="12" font-family="Helvetica, Arial, sans-serif" fill="#374151">4k</text>
+<line x1="253.55" y1="110" x2="253.55" y2="710" stroke="#f3f4f6" stroke-width="1" />
+<text x="253.55" y="732" text-anchor="end" transform="rotate(-35 253.55 732)" font-size="12" font-family="Helvetica, Arial, sans-serif" fill="#374151">6k</text>
+<line x1="310.97" y1="110" x2="310.97" y2="710" stroke="#f3f4f6" stroke-width="1" />
+<text x="310.97" y="732" text-anchor="end" transform="rotate(-35 310.97 732)" font-size="12" font-family="Helvetica, Arial, sans-serif" fill="#374151">8k</text>
+<line x1="368.39" y1="110" x2="368.39" y2="710" stroke="#f3f4f6" stroke-width="1" />
+<text x="368.39" y="732" text-anchor="end" transform="rotate(-35 368.39 732)" font-size="12" font-family="Helvetica, Arial, sans-serif" fill="#374151">10k</text>
+<line x1="425.81" y1="110" x2="425.81" y2="710" stroke="#f3f4f6" stroke-width="1" />
+<text x="425.81" y="732" text-anchor="end" transform="rotate(-35 425.81 732)" font-size="12" font-family="Helvetica, Arial, sans-serif" fill="#374151">12k</text>
+<line x1="540.65" y1="110" x2="540.65" y2="710" stroke="#f3f4f6" stroke-width="1" />
+<text x="540.65" y="732" text-anchor="end" transform="rotate(-35 540.65 732)" font-size="12" font-family="Helvetica, Arial, sans-serif" fill="#374151">16k</text>
+<line x1="655.48" y1="110" x2="655.48" y2="710" stroke="#f3f4f6" stroke-width="1" />
+<text x="655.48" y="732" text-anchor="end" transform="rotate(-35 655.48 732)" font-size="12" font-family="Helvetica, Arial, sans-serif" fill="#374151">20k</text>
+<line x1="770.32" y1="110" x2="770.32" y2="710" stroke="#f3f4f6" stroke-width="1" />
+<text x="770.32" y="732" text-anchor="end" transform="rotate(-35 770.32 732)" font-size="12" font-family="Helvetica, Arial, sans-serif" fill="#374151">24k</text>
+<line x1="885.16" y1="110" x2="885.16" y2="710" stroke="#f3f4f6" stroke-width="1" />
+<text x="885.16" y="732" text-anchor="end" transform="rotate(-35 885.16 732)" font-size="12" font-family="Helvetica, Arial, sans-serif" fill="#374151">28k</text>
+<line x1="942.58" y1="110" x2="942.58" y2="710" stroke="#f3f4f6" stroke-width="1" />
+<text x="942.58" y="732" text-anchor="end" transform="rotate(-35 942.58 732)" font-size="12" font-family="Helvetica, Arial, sans-serif" fill="#374151">30k</text>
+<line x1="971.29" y1="110" x2="971.29" y2="710" stroke="#f3f4f6" stroke-width="1" />
+<text x="971.29" y="732" text-anchor="end" transform="rotate(-35 971.29 732)" font-size="12" font-family="Helvetica, Arial, sans-serif" fill="#374151">31k</text>
+<line x1="1000.00" y1="110" x2="1000.00" y2="710" stroke="#f3f4f6" stroke-width="1" />
+<text x="1000.00" y="732" text-anchor="end" transform="rotate(-35 1000.00 732)" font-size="12" font-family="Helvetica, Arial, sans-serif" fill="#374151">32k</text>
+<line x1="110" y1="710" x2="1000" y2="710" stroke="#111827" stroke-width="1.5" />
+<line x1="110" y1="110" x2="110" y2="710" stroke="#111827" stroke-width="1.5" />
+<polyline fill="none" stroke="#111827" stroke-width="3" points="110.00,465.39 138.71,420.29 167.42,393.73 196.13,375.11 253.55,348.44 310.97,329.27 368.39,314.51 425.81,302.32 540.65,283.03 655.48,268.76 770.32,257.39 885.16,247.50 942.58,243.14 971.29,240.99 1000.00,238.86" />
+<circle cx="110.00" cy="465.39" r="4.5" fill="#111827"><title>serial_cpp | names-1k | total_program_seconds=4.273305</title></circle>
+<circle cx="138.71" cy="420.29" r="4.5" fill="#111827"><title>serial_cpp | names-2k | total_program_seconds=8.538576</title></circle>
+<circle cx="167.42" cy="393.73" r="4.5" fill="#111827"><title>serial_cpp | names-3k | total_program_seconds=12.836415</title></circle>
+<circle cx="196.13" cy="375.11" r="4.5" fill="#111827"><title>serial_cpp | names-4k | total_program_seconds=17.084338</title></circle>
+<circle cx="253.55" cy="348.44" r="4.5" fill="#111827"><title>serial_cpp | names-6k | total_program_seconds=25.727969</title></circle>
+<circle cx="310.97" cy="329.27" r="4.5" fill="#111827"><title>serial_cpp | names-8k | total_program_seconds=34.531811</title></circle>
+<circle cx="368.39" cy="314.51" r="4.5" fill="#111827"><title>serial_cpp | names-10k | total_program_seconds=43.311180</title></circle>
+<circle cx="425.81" cy="302.32" r="4.5" fill="#111827"><title>serial_cpp | names-12k | total_program_seconds=52.224159</title></circle>
+<circle cx="540.65" cy="283.03" r="4.5" fill="#111827"><title>serial_cpp | names-16k | total_program_seconds=70.217624</title></circle>
+<circle cx="655.48" cy="268.76" r="4.5" fill="#111827"><title>serial_cpp | names-20k | total_program_seconds=87.422947</title></circle>
+<circle cx="770.32" cy="257.39" r="4.5" fill="#111827"><title>serial_cpp | names-24k | total_program_seconds=104.081030</title></circle>
+<circle cx="885.16" cy="247.50" r="4.5" fill="#111827"><title>serial_cpp | names-28k | total_program_seconds=121.158600</title></circle>
+<circle cx="942.58" cy="243.14" r="4.5" fill="#111827"><title>serial_cpp | names-30k | total_program_seconds=129.539980</title></circle>
+<circle cx="971.29" cy="240.99" r="4.5" fill="#111827"><title>serial_cpp | names-31k | total_program_seconds=133.895550</title></circle>
+<circle cx="1000.00" cy="238.86" r="4.5" fill="#111827"><title>serial_cpp | names-32k | total_program_seconds=138.334970</title></circle>
+<polyline fill="none" stroke="#b91c1c" stroke-width="3" points="110.00,535.85 138.71,495.41 167.42,470.00 196.13,452.37 253.55,426.53 310.97,408.09 368.39,393.44 425.81,381.61 540.65,363.25 655.48,348.50 770.32,336.91 885.16,326.26 942.58,322.69 971.29,320.63 1000.00,318.56" />
+<circle cx="110.00" cy="535.85" r="4.5" fill="#b91c1c"><title>baseline_cuda | names-1k | total_program_seconds=1.448674</title></circle>
+<circle cx="138.71" cy="495.41" r="4.5" fill="#b91c1c"><title>baseline_cuda | names-2k | total_program_seconds=2.695105</title></circle>
+<circle cx="167.42" cy="470.00" r="4.5" fill="#b91c1c"><title>baseline_cuda | names-3k | total_program_seconds=3.981312</title></circle>
+<circle cx="196.13" cy="452.37" r="4.5" fill="#b91c1c"><title>baseline_cuda | names-4k | total_program_seconds=5.218551</title></circle>
+<circle cx="253.55" cy="426.53" r="4.5" fill="#b91c1c"><title>baseline_cuda | names-6k | total_program_seconds=7.758749</title></circle>
+<circle cx="310.97" cy="408.09" r="4.5" fill="#b91c1c"><title>baseline_cuda | names-8k | total_program_seconds=10.297834</title></circle>
+<circle cx="368.39" cy="393.44" r="4.5" fill="#b91c1c"><title>baseline_cuda | names-10k | total_program_seconds=12.894181</title></circle>
+<circle cx="425.81" cy="381.61" r="4.5" fill="#b91c1c"><title>baseline_cuda | names-12k | total_program_seconds=15.461818</title></circle>
+<circle cx="540.65" cy="363.25" r="4.5" fill="#b91c1c"><title>baseline_cuda | names-16k | total_program_seconds=20.495310</title></circle>
+<circle cx="655.48" cy="348.50" r="4.5" fill="#b91c1c"><title>baseline_cuda | names-20k | total_program_seconds=25.705485</title></circle>
+<circle cx="770.32" cy="336.91" r="4.5" fill="#b91c1c"><title>baseline_cuda | names-24k | total_program_seconds=30.709125</title></circle>
+<circle cx="885.16" cy="326.26" r="4.5" fill="#b91c1c"><title>baseline_cuda | names-28k | total_program_seconds=36.163007</title></circle>
+<circle cx="942.58" cy="322.69" r="4.5" fill="#b91c1c"><title>baseline_cuda | names-30k | total_program_seconds=38.198970</title></circle>
+<circle cx="971.29" cy="320.63" r="4.5" fill="#b91c1c"><title>baseline_cuda | names-31k | total_program_seconds=39.424730</title></circle>
+<circle cx="1000.00" cy="318.56" r="4.5" fill="#b91c1c"><title>baseline_cuda | names-32k | total_program_seconds=40.700408</title></circle>
+<polyline fill="none" stroke="#d97706" stroke-width="3" points="110.00,635.35 138.71,604.67 167.42,587.88 196.13,571.84 253.55,549.75 310.97,532.96 368.39,518.94 425.81,508.14 540.65,489.29 655.48,475.79 770.32,464.80 885.16,455.30 942.58,450.64 971.29,448.42 1000.00,446.51" />
+<circle cx="110.00" cy="635.35" r="4.5" fill="#d97706"><title>batching_only | names-1k | total_program_seconds=0.314548</title></circle>
+<circle cx="138.71" cy="604.67" r="4.5" fill="#d97706"><title>batching_only | names-2k | total_program_seconds=0.503763</title></circle>
+<circle cx="167.42" cy="587.88" r="4.5" fill="#d97706"><title>batching_only | names-3k | total_program_seconds=0.651834</title></circle>
+<circle cx="196.13" cy="571.84" r="4.5" fill="#d97706"><title>batching_only | names-4k | total_program_seconds=0.833771</title></circle>
+<circle cx="253.55" cy="549.75" r="4.5" fill="#d97706"><title>batching_only | names-6k | total_program_seconds=1.170483</title></circle>
+<circle cx="310.97" cy="532.96" r="4.5" fill="#d97706"><title>batching_only | names-8k | total_program_seconds=1.514582</title></circle>
+<circle cx="368.39" cy="518.94" r="4.5" fill="#d97706"><title>batching_only | names-10k | total_program_seconds=1.878205</title></circle>
+<circle cx="425.81" cy="508.14" r="4.5" fill="#d97706"><title>batching_only | names-12k | total_program_seconds=2.216941</title></circle>
+<circle cx="540.65" cy="489.29" r="4.5" fill="#d97706"><title>batching_only | names-16k | total_program_seconds=2.960536</title></circle>
+<circle cx="655.48" cy="475.79" r="4.5" fill="#d97706"><title>batching_only | names-20k | total_program_seconds=3.642453</title></circle>
+<circle cx="770.32" cy="464.80" r="4.5" fill="#d97706"><title>batching_only | names-24k | total_program_seconds=4.312109</title></circle>
+<circle cx="885.16" cy="455.30" r="4.5" fill="#d97706"><title>batching_only | names-28k | total_program_seconds=4.989142</title></circle>
+<circle cx="942.58" cy="450.64" r="4.5" fill="#d97706"><title>batching_only | names-30k | total_program_seconds=5.358760</title></circle>
+<circle cx="971.29" cy="448.42" r="4.5" fill="#d97706"><title>batching_only | names-31k | total_program_seconds=5.544758</title></circle>
+<circle cx="1000.00" cy="446.51" r="4.5" fill="#d97706"><title>batching_only | names-32k | total_program_seconds=5.709509</title></circle>
+<polyline fill="none" stroke="#2563eb" stroke-width="3" points="110.00,554.81 138.71,512.92 167.42,487.82 196.13,469.23 253.55,443.23 310.97,425.10 368.39,410.23 425.81,398.60 540.65,379.58 655.48,364.60 770.32,353.36 885.16,343.43 942.58,338.97 971.29,336.80 1000.00,334.47" />
+<circle cx="110.00" cy="554.81" r="4.5" fill="#2563eb"><title>float_only | names-1k | total_program_seconds=1.082921</title></circle>
+<circle cx="138.71" cy="512.92" r="4.5" fill="#2563eb"><title>float_only | names-2k | total_program_seconds=2.060100</title></circle>
+<circle cx="167.42" cy="487.82" r="4.5" fill="#2563eb"><title>float_only | names-3k | total_program_seconds=3.028506</title></circle>
+<circle cx="196.13" cy="469.23" r="4.5" fill="#2563eb"><title>float_only | names-4k | total_program_seconds=4.028276</title></circle>
+<circle cx="253.55" cy="443.23" r="4.5" fill="#2563eb"><title>float_only | names-6k | total_program_seconds=6.004703</title></circle>
+<circle cx="310.97" cy="425.10" r="4.5" fill="#2563eb"><title>float_only | names-8k | total_program_seconds=7.930836</title></circle>
+<circle cx="368.39" cy="410.23" r="4.5" fill="#2563eb"><title>float_only | names-10k | total_program_seconds=9.964733</title></circle>
+<circle cx="425.81" cy="398.60" r="4.5" fill="#2563eb"><title>float_only | names-12k | total_program_seconds=11.912713</title></circle>
+<circle cx="540.65" cy="379.58" r="4.5" fill="#2563eb"><title>float_only | names-16k | total_program_seconds=15.950318</title></circle>
+<circle cx="655.48" cy="364.60" r="4.5" fill="#2563eb"><title>float_only | names-20k | total_program_seconds=20.075933</title></circle>
+<circle cx="770.32" cy="353.36" r="4.5" fill="#2563eb"><title>float_only | names-24k | total_program_seconds=23.856743</title></circle>
+<circle cx="885.16" cy="343.43" r="4.5" fill="#2563eb"><title>float_only | names-28k | total_program_seconds=27.785537</title></circle>
+<circle cx="942.58" cy="338.97" r="4.5" fill="#2563eb"><title>float_only | names-30k | total_program_seconds=29.753240</title></circle>
+<circle cx="971.29" cy="336.80" r="4.5" fill="#2563eb"><title>float_only | names-31k | total_program_seconds=30.760556</title></circle>
+<circle cx="1000.00" cy="334.47" r="4.5" fill="#2563eb"><title>float_only | names-32k | total_program_seconds=31.880050</title></circle>
+<polyline fill="none" stroke="#059669" stroke-width="3" points="110.00,511.97 138.71,468.62 167.42,442.83 196.13,424.25 253.55,397.46 310.97,379.04 368.39,364.38 425.81,352.39 540.65,333.27 655.48,318.66 770.32,307.06 885.16,296.97 942.58,292.41 971.29,290.36 1000.00,288.13" />
+<circle cx="110.00" cy="511.97" r="4.5" fill="#059669"><title>tiled_matmul_only | names-1k | total_program_seconds=2.090343</title></circle>
+<circle cx="138.71" cy="468.62" r="4.5" fill="#059669"><title>tiled_matmul_only | names-2k | total_program_seconds=4.066470</title></circle>
+<circle cx="167.42" cy="442.83" r="4.5" fill="#059669"><title>tiled_matmul_only | names-3k | total_program_seconds=6.040920</title></circle>
+<circle cx="196.13" cy="424.25" r="4.5" fill="#059669"><title>tiled_matmul_only | names-4k | total_program_seconds=8.035525</title></circle>
+<circle cx="253.55" cy="397.46" r="4.5" fill="#059669"><title>tiled_matmul_only | names-6k | total_program_seconds=12.121845</title></circle>
+<circle cx="310.97" cy="379.04" r="4.5" fill="#059669"><title>tiled_matmul_only | names-8k | total_program_seconds=16.085426</title></circle>
+<circle cx="368.39" cy="364.38" r="4.5" fill="#059669"><title>tiled_matmul_only | names-10k | total_program_seconds=20.142581</title></circle>
+<circle cx="425.81" cy="352.39" r="4.5" fill="#059669"><title>tiled_matmul_only | names-12k | total_program_seconds=24.214704</title></circle>
+<circle cx="540.65" cy="333.27" r="4.5" fill="#059669"><title>tiled_matmul_only | names-16k | total_program_seconds=32.472550</title></circle>
+<circle cx="655.48" cy="318.66" r="4.5" fill="#059669"><title>tiled_matmul_only | names-20k | total_program_seconds=40.640092</title></circle>
+<circle cx="770.32" cy="307.06" r="4.5" fill="#059669"><title>tiled_matmul_only | names-24k | total_program_seconds=48.560107</title></circle>
+<circle cx="885.16" cy="296.97" r="4.5" fill="#059669"><title>tiled_matmul_only | names-28k | total_program_seconds=56.689858</title></circle>
+<circle cx="942.58" cy="292.41" r="4.5" fill="#059669"><title>tiled_matmul_only | names-30k | total_program_seconds=60.804519</title></circle>
+<circle cx="971.29" cy="290.36" r="4.5" fill="#059669"><title>tiled_matmul_only | names-31k | total_program_seconds=62.751745</title></circle>
+<circle cx="1000.00" cy="288.13" r="4.5" fill="#059669"><title>tiled_matmul_only | names-32k | total_program_seconds=64.930302</title></circle>
+<polyline fill="none" stroke="#7c3aed" stroke-width="3" points="110.00,681.79 138.71,672.05 167.42,661.28 196.13,655.32 253.55,634.63 310.97,631.68 368.39,622.45 425.81,613.45 540.65,598.19 655.48,585.63 770.32,578.43 885.16,569.93 942.58,565.26 971.29,562.98 1000.00,560.81" />
+<circle cx="110.00" cy="681.79" r="4.5" fill="#7c3aed"><title>batching_float_tiled | names-1k | total_program_seconds=0.154183</title></circle>
+<circle cx="138.71" cy="672.05" r="4.5" fill="#7c3aed"><title>batching_float_tiled | names-2k | total_program_seconds=0.179073</title></circle>
+<circle cx="167.42" cy="661.28" r="4.5" fill="#7c3aed"><title>batching_float_tiled | names-3k | total_program_seconds=0.211261</title></circle>
+<circle cx="196.13" cy="655.32" r="4.5" fill="#7c3aed"><title>batching_float_tiled | names-4k | total_program_seconds=0.231501</title></circle>
+<circle cx="253.55" cy="634.63" r="4.5" fill="#7c3aed"><title>batching_float_tiled | names-6k | total_program_seconds=0.318031</title></circle>
+<circle cx="310.97" cy="631.68" r="4.5" fill="#7c3aed"><title>batching_float_tiled | names-8k | total_program_seconds=0.332770</title></circle>
+<circle cx="368.39" cy="622.45" r="4.5" fill="#7c3aed"><title>batching_float_tiled | names-10k | total_program_seconds=0.383432</title></circle>
+<circle cx="425.81" cy="613.45" r="4.5" fill="#7c3aed"><title>batching_float_tiled | names-12k | total_program_seconds=0.440243</title></circle>
+<circle cx="540.65" cy="598.19" r="4.5" fill="#7c3aed"><title>batching_float_tiled | names-16k | total_program_seconds=0.556422</title></circle>
+<circle cx="655.48" cy="585.63" r="4.5" fill="#7c3aed"><title>batching_float_tiled | names-20k | total_program_seconds=0.674733</title></circle>
+<circle cx="770.32" cy="578.43" r="4.5" fill="#7c3aed"><title>batching_float_tiled | names-24k | total_program_seconds=0.753641</title></circle>
+<circle cx="885.16" cy="569.93" r="4.5" fill="#7c3aed"><title>batching_float_tiled | names-28k | total_program_seconds=0.858591</title></circle>
+<circle cx="942.58" cy="565.26" r="4.5" fill="#7c3aed"><title>batching_float_tiled | names-30k | total_program_seconds=0.922434</title></circle>
+<circle cx="971.29" cy="562.98" r="4.5" fill="#7c3aed"><title>batching_float_tiled | names-31k | total_program_seconds=0.955217</title></circle>
+<circle cx="1000.00" cy="560.81" r="4.5" fill="#7c3aed"><title>batching_float_tiled | names-32k | total_program_seconds=0.987605</title></circle>
+<text x="555.00" y="796" text-anchor="middle" font-size="16" font-family="Helvetica, Arial, sans-serif" fill="#111827">Number of Names</text>
+<text x="28" y="410.00" text-anchor="middle" transform="rotate(-90 28 410.00)" font-size="16" font-family="Helvetica, Arial, sans-serif" fill="#111827">Runtime (seconds)</text>
+<text x="1030" y="120" font-size="16" font-weight="700" font-family="Helvetica, Arial, sans-serif" fill="#111827">Methods</text>
+<line x1="1030" y1="146" x2="1052" y2="146" stroke="#111827" stroke-width="3" />
+<circle cx="1041" cy="146" r="4" fill="#111827" />
+<text x="1062" y="151" font-size="14" font-family="Helvetica, Arial, sans-serif" fill="#111827">serial_cpp</text>
+<line x1="1030" y1="174" x2="1052" y2="174" stroke="#b91c1c" stroke-width="3" />
+<circle cx="1041" cy="174" r="4" fill="#b91c1c" />
+<text x="1062" y="179" font-size="14" font-family="Helvetica, Arial, sans-serif" fill="#111827">baseline_cuda</text>
+<line x1="1030" y1="202" x2="1052" y2="202" stroke="#d97706" stroke-width="3" />
+<circle cx="1041" cy="202" r="4" fill="#d97706" />
+<text x="1062" y="207" font-size="14" font-family="Helvetica, Arial, sans-serif" fill="#111827">batching_only</text>
+<line x1="1030" y1="230" x2="1052" y2="230" stroke="#2563eb" stroke-width="3" />
+<circle cx="1041" cy="230" r="4" fill="#2563eb" />
+<text x="1062" y="235" font-size="14" font-family="Helvetica, Arial, sans-serif" fill="#111827">float_only</text>
+<line x1="1030" y1="258" x2="1052" y2="258" stroke="#059669" stroke-width="3" />
+<circle cx="1041" cy="258" r="4" fill="#059669" />
+<text x="1062" y="263" font-size="14" font-family="Helvetica, Arial, sans-serif" fill="#111827">tiled_matmul_only</text>
+<line x1="1030" y1="286" x2="1052" y2="286" stroke="#7c3aed" stroke-width="3" />
+<circle cx="1041" cy="286" r="4" fill="#7c3aed" />
+<text x="1062" y="291" font-size="14" font-family="Helvetica, Arial, sans-serif" fill="#111827">batching_float_tiled</text>
+</svg>

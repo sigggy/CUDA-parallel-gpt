@@ -1,8 +1,8 @@
 \section{Bottleneck Discussion}
 
 To perform the bottleneck analysis, we utilized nvprof to perform a kernel-level profiling of our program. What we wanted to discover was what portions or kernel calls 
-were responsible the largest portion of program time. Below is the configuration for the model and training set size used in the profiling.
-
+were responsible the largest portion of program time. Below is the configuration for the model and training set size used in the profiling. The batch size
+parameter is only applicable to the second profiling result, after optimizations were introduced.
 \begin{table}[H]
 \centering
 \small
@@ -32,7 +32,7 @@ Number of Heads     & 16 \\
 \hline
 \textbf{Kernel} & \textbf{Time (\%)} & \textbf{Total Time} & \textbf{Calls} & \textbf{Avg} & \textbf{Max} \\
 \hline
-linear\_kernel\_untiled & 80.86\% & 70.3209 s & 490000 & 143.51 $\mu$s & 464.80 $\mu$s \\
+linear\_kernel & 80.86\% & 70.3209 s & 490000 & 143.51 $\mu$s & 464.80 $\mu$s \\
 rmsnorm\_kernel & 10.33\% & 8.98660 s & 170000 & 52.862 $\mu$s & 82.272 $\mu$s \\
 self\_attn\_kernel & 7.33\% & 6.37602 s & 80000 & 79.700 $\mu$s & 162.91 $\mu$s \\
 cross\_entropy\_loss\_kernel & 0.85\% & 736.82 ms & 10000 & 73.682 $\mu$s & 149.54 $\mu$s \\
@@ -44,6 +44,18 @@ embedding\_lookup\_kernel & 0.02\% & 16.086 ms & 10000 & 1.6080 $\mu$s & 2.1760 
 \caption{CUDA Kernel Profiling Results for Parallel Implementation Pre-Optimizations}
 \end{table}
 
+What we noticed in the above table were two things:
+\begin{enumerate}
+    \item Over $80\%$ of execution time was spent in the \texttt{linear\_kernel}.
+    \item Individual kernel calls were reasonably fast, but the high number of invocations led to significant overhead.
+\end{enumerate}
+From these investigations, we determined the right course of action was to pursue optimizations similar to how modern day
+LLM trainings operate. The first optimziation we went to implement was an optimization to reduce the time cost of the linear layer,
+which is simply matrix multiplication. Utilizing the tiling method we learned about in lecture, we were able to reduce the 
+time cost of the \texttt{linear\_kernel} by roughly $81.87$x in the average case. The next optimization we wanted to aim for
+was one that many modern training systems do today, which is batching. By processing single tokens or single sequences at a time, we lose the benefit
+of the massive amounts of parallelization available to us via the GPUs, and as such implementing the method to 
+perform multiple sequences, at once, in a single batch was a reasonable next step. 
 
 \begin{table}[H]
 \centering
@@ -63,5 +75,5 @@ add\_vec\_kernel & 0.42\% & 11.762 ms & 448 & 26.254 $\mu$s & 50.016 $\mu$s \\
 embedding\_lookup\_kernel & 0.02\% & 481.57 $\mu$s & 28 & 17.198 $\mu$s & 31.776 $\mu$s \\
 \hline
 \end{tabular}
-\caption{CUDA Kernel Profiling Results for Parallel Implementation with Tiling}
+\caption{CUDA Kernel Profiling Results for Parallel Implementation with Optimizations}
 \end{table}

@@ -1,0 +1,29 @@
+==4181625== NVPROF is profiling process 4181625, command: ./build/baseline_cuda --mode benchmark --dataset training_data/datasets/names.txt --label custom --num-steps 10000 --n-layer 8 --n-embd 512 --block-size 64 --n-head 16 --batch-size 512
+mode=benchmark preset=custom requested_steps=10000 steps=10000 batch_size=1 batches=10000 last_doc=greisy loss=55.527383 mean_loss=44.33363 forward_pass_seconds_cumulative=89.91021 total_program_seconds=91.225129 benchmark_status=forward_cuda
+==4181625== Profiling application: ./build/baseline_cuda --mode benchmark --dataset training_data/datasets/names.txt --label custom --num-steps 10000 --n-layer 8 --n-embd 512 --block-size 64 --n-head 16 --batch-size 512
+==4181625== Profiling result:
+            Type  Time(%)      Time     Calls       Avg       Min       Max  Name
+ GPU activities:   80.86%  70.3209s    490000  143.51us  33.984us  464.80us  _GLOBAL__N__41_tmpxft_003e52a3_00000000_9_kernel_cpp1_ii_b1d65ab7::linear_kernel_untiled(double const *, double const *, double*, int, int, int)
+                   10.33%  8.98660s    170000  52.862us  43.808us  82.272us  _GLOBAL__N__41_tmpxft_003e52a3_00000000_9_kernel_cpp1_ii_b1d65ab7::rmsnorm_kernel(double const *, double*, int, int, int)
+                    7.33%  6.37602s     80000  79.700us  34.112us  162.91us  _GLOBAL__N__41_tmpxft_003e52a3_00000000_9_kernel_cpp1_ii_b1d65ab7::self_attn_kernel(double const *, double const *, double const *, double*, int, int, int, int, int)
+                    0.85%  736.82ms     10000  73.682us  31.264us  149.54us  _GLOBAL__N__41_tmpxft_003e52a3_00000000_9_kernel_cpp1_ii_b1d65ab7::cross_entropy_loss_kernel(double const *, double*, int const *, int, int, int, int)
+                    0.25%  217.70ms    160000  1.3600us  1.0560us  1.9520us  _GLOBAL__N__41_tmpxft_003e52a3_00000000_9_kernel_cpp1_ii_b1d65ab7::add_vec_kernel(double const *, double const *, double*, int)
+                    0.17%  150.56ms    150000  1.0030us     896ns  1.8560us  [CUDA memset]
+                    0.13%  109.93ms     80000  1.3740us  1.1520us  2.1440us  _GLOBAL__N__41_tmpxft_003e52a3_00000000_9_kernel_cpp1_ii_b1d65ab7::relu_kernel(double*, int)
+                    0.04%  31.001ms     10051  3.0840us     960ns  1.0364ms  [CUDA memcpy HtoD]
+                    0.03%  25.501ms     20000  1.2750us  1.1200us  1.9200us  [CUDA memcpy DtoH]
+                    0.02%  16.086ms     10000  1.6080us  1.4080us  2.1760us  _GLOBAL__N__41_tmpxft_003e52a3_00000000_9_kernel_cpp1_ii_b1d65ab7::embedding_lookup_kernel(int const *, double const *, double const *, double*, int, int, int, int)
+      API calls:   91.53%  81.8565s     10000  8.1856ms  4.8354ms  12.185ms  cudaDeviceSynchronize
+                    5.76%  5.14792s   1000000  5.1470us  4.1500us  3.4291ms  cudaLaunchKernel
+                    1.06%  946.04ms    150000  6.3060us  2.8300us  31.743ms  cudaMemset
+                    0.60%  533.08ms    160051  3.3300us  1.8400us  147.44ms  cudaMalloc
+                    0.49%  442.29ms     30051  14.717us  4.3600us  6.5584ms  cudaMemcpy
+                    0.39%  350.26ms    160051  2.1880us  1.6800us  1.9719ms  cudaFree
+                    0.17%  152.37ms   1000000     152ns     130ns  303.18us  cudaGetLastError
+                    0.00%  537.11us       194  2.7680us     200ns  130.21us  cuDeviceGetAttribute
+                    0.00%  21.570us         2  10.785us  4.9900us  16.580us  cuDeviceGetName
+                    0.00%  14.110us         2  7.0550us  5.7300us  8.3800us  cuDeviceGetPCIBusId
+                    0.00%  1.2100us         3     403ns     150ns     720ns  cuDeviceGetCount
+                    0.00%  1.1600us         4     290ns     200ns     410ns  cuDeviceGet
+                    0.00%  1.0600us         2     530ns     510ns     550ns  cuDeviceTotalMem
+                    0.00%     540ns         2     270ns     240ns     300ns  cuDeviceGetUuid

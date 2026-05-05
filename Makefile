@@ -27,8 +27,16 @@ BATCHING_FLOAT_TILED_SRCS := methods/batching_float_tiled/main.cpp methods/batch
 
 .PHONY: all fixtures clean profile
 
-all: $(BUILD_DIR)/serial_cpp $(BUILD_DIR)/parallel_cpp
-
+all: \
+	$(BUILD_DIR)/serial_cpp \
+	$(BUILD_DIR)/parallel_cpp \
+	$(BUILD_DIR)/parallel_cpp_untiled \
+	$(BUILD_DIR)/baseline_cuda \
+	$(BUILD_DIR)/batching_only \
+	$(BUILD_DIR)/float_only \
+	$(BUILD_DIR)/tiled_matmul_only \
+	$(BUILD_DIR)/batching_float_tiled
+	
 profile: $(BUILD_DIR)/serial_cpp_profile
 
 fixtures:

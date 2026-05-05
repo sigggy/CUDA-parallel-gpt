@@ -1,3 +1,69 @@
 \section{Bottleneck Discussion}
 \label{sec:bottleneck}
 Placeholder text.
+
+To perform the bottleneck analysis, we utilized nvprof to perform a kernel-level profiling of our program. What we wanted to discover was what portions or kernel calls 
+were responsible the largest portion of program time. Below is the configuration for the model and training set size used in the profiling.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{lc}
+\hline
+\textbf{Parameter} & \textbf{Value} \\
+\hline
+Names               & 10{,}000 \\
+Batch Size          & 512 \\
+Number of Layers    & 8 \\
+Embedding Dimension & 512 \\
+Block Size          & 64 \\
+Number of Heads     & 16 \\
+\hline
+\end{tabular}
+\caption{Profiling Configuration Parameters}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{lccccc}
+\hline
+\textbf{Kernel} & \textbf{Time (\%)} & \textbf{Total Time} & \textbf{Calls} & \textbf{Avg} & \textbf{Max} \\
+\hline
+linear\_kernel\_untiled & 80.86\% & 70.3209 s & 490000 & 143.51 $\mu$s & 464.80 $\mu$s \\
+rmsnorm\_kernel & 10.33\% & 8.98660 s & 170000 & 52.862 $\mu$s & 82.272 $\mu$s \\
+self\_attn\_kernel & 7.33\% & 6.37602 s & 80000 & 79.700 $\mu$s & 162.91 $\mu$s \\
+cross\_entropy\_loss\_kernel & 0.85\% & 736.82 ms & 10000 & 73.682 $\mu$s & 149.54 $\mu$s \\
+add\_vec\_kernel & 0.25\% & 217.70 ms & 160000 & 1.3600 $\mu$s & 1.9520 $\mu$s \\
+relu\_kernel & 0.13\% & 109.93 ms & 80000 & 1.3740 $\mu$s & 2.1440 $\mu$s \\
+embedding\_lookup\_kernel & 0.02\% & 16.086 ms & 10000 & 1.6080 $\mu$s & 2.1760 $\mu$s \\
+\hline
+\end{tabular}
+\caption{CUDA Kernel Profiling Results for Parallel Implementation Pre-Optimizations}
+\end{table}
+
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{lccccc}
+\hline
+\textbf{Kernel} & \textbf{Time (\%)} & \textbf{Total Time} & \textbf{Calls} & \textbf{Avg} & \textbf{Max} \\
+\hline
+linear\_kernel & 85.88\% & 2.40485 s & 1372 & 1.7528 ms & 6.9377 ms \\
+rmsnorm\_kernel & 4.52\% & 126.59 ms & 476 & 265.95 $\mu$s & 424.22 $\mu$s \\
+self\_attn\_kernel & 4.45\% & 124.61 ms & 224 & 556.29 $\mu$s & 1.1746 ms \\
+cross\_entropy\_loss\_kernel & 3.73\% & 104.36 ms & 28 & 3.7271 ms & 6.7604 ms \\
+relu\_kernel & 0.58\% & 16.380 ms & 224 & 73.123 $\mu$s & 133.66 $\mu$s \\
+add\_vec\_kernel & 0.42\% & 11.762 ms & 448 & 26.254 $\mu$s & 50.016 $\mu$s \\
+embedding\_lookup\_kernel & 0.02\% & 481.57 $\mu$s & 28 & 17.198 $\mu$s & 31.776 $\mu$s \\
+\hline
+\end{tabular}
+\caption{CUDA Kernel Profiling Results for Parallel Implementation with Tiling}
+\end{table}

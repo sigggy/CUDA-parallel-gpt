@@ -95,11 +95,11 @@
 \lstset{style=pseudocode}
 
 
-\newcommand{\datarow}{%
+\newcommand{\datarow}[3]{%
     \begin{tabular}[t]{@{}l@{}}
-        Names: \\
-        Layers: \\
-        Embeddings:
+        Names: #1 \\
+        Layers: #2 \\
+        Embeddings: #3
     \end{tabular}
 }
 
@@ -127,6 +127,21 @@
 
 \section{Introduction}
 \begin{frame}{Introduction}
+
+    
+    Parallelizing the forward pass of MicroGPT.
+
+    \begin{itemize}
+        \item MicroGPT is a 200 line, dependency free, Python implementation of GPT-2 created by Andrej Karpathty
+        \item Parallelizing ONLY the forward pass of MicroGPT
+        \begin{enumerate}
+            \item \textbf{Tokenization \& Embedding:} Mapping inputs to high-dimensional space.
+            \item \textbf{Self-Attention:} Parallelizing the $Q, K, V$ matrix operations.
+            \item \textbf{Loss Calculation:} Efficiently computing cross-entropy across batches.
+        \end{enumerate}
+        \item Implement batching to improve parallel performance
+    \end{itemize}
+
 \end{frame}
 
 \section{Serial}
@@ -257,11 +272,11 @@ calc_loss(name_list)
         \hline
         & \textbf{Python Serial} & \textbf{C++ Serial} & \textbf{CUDA Parallel} \\
         \hline
-        \datarow & & & \\
+        \datarow{200}{1}{64} & 44.68 seconds & 0.0644 seconds & 0.114 seconds\\
         \hline
-        \datarow & & & \\
+        \datarow{1,000}{2}{128} & 1721.97 seconds (28.7 minutes) & 2.16 seconds & 0.158 seconds\\
         \hline
-        \datarow & & & \\
+        \datarow{10,000}{8}{512} & Skipped (Too long) & 1,583.08 seconds (26.4 minutes) & 3.52 seconds \\
         \hline
     \end{tabularx}
 \end{frame}

@@ -129,21 +129,22 @@
 
 \section{Introduction}
 \begin{frame}{Introduction}
-
-    
-    Parallelizing the forward pass of MicroGPT.
-
     \begin{itemize}
-        \item MicroGPT is a 200 line, dependency free, Python implementation of GPT-2 created by Andrej Karpathty
+        \item We focus on the GPT-2 transformer architecture proposed in \textit{Language Models are Unsupervised Multitask Learners}
+        \begin{itemize}
+            \item decoder only, each layer is self-attention + MLP 
+            \item causal self attention, only attend to the previous tokens in a sequence
+            \item autoregressive, $p(x_t \mid x_1, \dots, x_{t-1})$
+        \end{itemize}
+        \item \textit{microgpt} is a 200 line, dependency free, Python implementation of GPT-2 created by Andrej Karpathy
+        \begin{itemize}
+            \item trained on a corpus names in order to produce new names at inference time 
+            \item follows a similar architecture as GPT-2 with far less parameters (4,192 vs 1.6 billion)
+            \item \textit{microgpt} uses RMSNorm and ReLU instead of LayerNorm and GELU used in GPT-2 
+        \end{itemize}
+        \item We create a C++ serial version matching \textit{microgpt}, in order to provide a better comparison for our parallel version
         \item Parallelizing ONLY the forward pass of MicroGPT
-        \begin{enumerate}
-            \item \textbf{Tokenization \& Embedding:} Mapping inputs to high-dimensional space.
-            \item \textbf{Self-Attention:} Parallelizing the $Q, K, V$ matrix operations.
-            \item \textbf{Loss Calculation:} Efficiently computing cross-entropy across batches.
-        \end{enumerate}
-        \item Implement batching to improve parallel performance
     \end{itemize}
-
 \end{frame}
 
 \section{Serial}

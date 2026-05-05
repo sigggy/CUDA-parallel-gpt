@@ -84,4 +84,4 @@ CrossEntropy & single thread & one thread loops over all $(B,T,\text{vocab})$ to
 
 From a systems perspective, the full model is transferred to the GPU once at initialization, while a reusable workspace is allocated once per batch. This avoids repeated host-device transfers and ensures that all intermediate activations remain resident on the GPU throughout the forward pass.
 
-With this strategy in place, we will next evaluate how effectively the batched GPU implementation reduces wall-clock time compared to serial and numpy baselines. 
+With this strategy in place, we will next evaluate how effectively the batched GPU implementation reduces wall-clock time compared to serial and PyTorch baselines. 

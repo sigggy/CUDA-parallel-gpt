@@ -11,6 +11,10 @@ namespace {
 
 constexpr int TILE_DIM = 32;
 
+#ifndef USE_TILED_LINEAR
+#define USE_TILED_LINEAR 1
+#endif
+
 void cuda_check(cudaError_t status, const char* action) {
     if (status != cudaSuccess) {
         throw std::runtime_error(std::string("CUDA failure while ") + action + ": " + cudaGetErrorString(status));
@@ -320,6 +324,31 @@ __global__ void linear_kernel(
         output[row * out_dim + col] = sum;
 }
 
+__global__ void linear_kernel_untiled(
+    const float* input,
+    const float* weights,
+    float* output,
+    int total_tokens,
+    int out_dim,
+    int in_dim
+) {
+    const int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    const int total_outputs = total_tokens * out_dim;
+    if (idx >= total_outputs) {
+        return;
+    }
+
+    const int row = idx / out_dim;
+    const int col = idx % out_dim;
+
+    float sum = 0.0f;
+    for (int in = 0; in < in_dim; ++in) {
+        sum += input[row * in_dim + in] * weights[col * in_dim + in];
+    }
+
+    output[row * out_dim + col] = sum;
+}
+
 
 
 __global__ void relu_kernel(
@@ -494,7 +523,7 @@ void launch_linear(
     int usable_seq_len
 ) {
     const int total_tokens = batch_size * usable_seq_len;
-
+#if USE_TILED_LINEAR
     dim3 block(TILE_DIM, TILE_DIM);
     dim3 grid(
         (out_dim + block.x - 1) / block.x,
@@ -507,6 +536,22 @@ void launch_linear(
     );
 
     cuda_check(cudaGetLastError(), "launching linear_tiled_kernel");
+#else
+    const auto launch = make_1d_launch(
+        static_cast<std::size_t>(total_tokens) * static_cast<std::size_t>(out_dim)
+    );
+
+    linear_kernel_untiled<<<launch.blocks, launch.threads>>>(
+        input,
+        weights,
+        output,
+        total_tokens,
+        out_dim,
+        in_dim
+    );
+
+    cuda_check(cudaGetLastError(), "launching linear_untiled_kernel");
+#endif
 }
 
 

@@ -20,7 +20,7 @@ The following sections present performance graphs across the evaluated model pre
 
 The first set of presets range in both model size and the number of names that we are performing the forward pass on. The aim of
 these presets was to determine what the forward pass time looked like across the various implementations as we scaled every parameter up.
-As you can see in the "Forward Pass Time Across Presets" graph, our implementation surpassed the serial C++ version (our baseline) on every preset.
+As you can see in graph \ref{fig:forward_pass_runtime}, our implementation surpassed the serial C++ version (our baseline) on every preset.
 Additionally, we outperformed the PyTorch implementations for smaller dataset sizes.
 
 \begin{figure}[H]
@@ -86,6 +86,7 @@ Additionally, we outperformed the PyTorch implementations for smaller dataset si
 
 \end{axis}
 \end{tikzpicture}
+\label{fig:forward_pass_runtime}
 \end{figure}
 
 The following figure illustrates the speedup achieved by our parallel implementation relative to the serial C++ baseline. As expected, the parallel version outperforms the serial implementation across all preset sizes. The trend also highlights that the performance advantage grows with increasing workload, since larger presets provide more opportunities to amortize kernel launch overhead and better utilize GPU parallelism. Notably, for the largest configurations, the forward pass achieves speedups exceeding 300×, indicating that the implementation scales particularly well under high compute intensity where the GPU is able to remain fully saturated.

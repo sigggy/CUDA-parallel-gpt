@@ -36,14 +36,18 @@ $(BUILD_DIR):
 $(BUILD_DIR)/serial_cpp: $(SERIAL_CPP_SRCS) methods/serial_cpp/kernel.hpp | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(SERIAL_CPP_SRCS) -o $@
 
-# Profiling build (clean symbols, minimal inlining)
+# Profiling build 
 $(BUILD_DIR)/serial_cpp_profile: $(SERIAL_CPP_SRCS) methods/serial_cpp/kernel.hpp | $(BUILD_DIR)
 	$(CXX) $(PROFILE_CXXFLAGS) $(SERIAL_CPP_SRCS) -o $@
 
-# CUDA build (unchanged)
+# CUDA build 
 $(BUILD_DIR)/parallel_cpp: $(PARALLEL_CPP_SRCS) methods/parallel_cpp/kernel.hpp | $(BUILD_DIR)
 	@command -v $(NVCC) >/dev/null 2>&1 || { echo "parallel_cpp requires nvcc on PATH"; exit 1; }
 	$(NVCC) $(NVCCFLAGS) $(PARALLEL_CPP_SRCS) -o $@
+
+$(BUILD_DIR)/parallel_cpp_untiled: $(PARALLEL_CPP_SRCS) methods/parallel_cpp/kernel.hpp | $(BUILD_DIR)
+	@command -v $(NVCC) >/dev/null 2>&1 || { echo "parallel_cpp_untiled requires nvcc on PATH"; exit 1; }
+	$(NVCC) $(NVCCFLAGS) -DUSE_TILED_LINEAR=0 $(PARALLEL_CPP_SRCS) -o $@
 
 clean:
 	rm -rf $(BUILD_DIR)

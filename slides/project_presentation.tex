@@ -95,11 +95,13 @@
 \lstset{style=pseudocode}
 
 
-\newcommand{\datarow}[3]{%
+\newcommand{\datarow}[4]{%
     \begin{tabular}[t]{@{}l@{}}
         Names: #1 \\
         Layers: #2 \\
-        Embeddings: #3
+        Embeddings: #3\\
+        Attn. Heads: #4
+
     \end{tabular}
 }
 
@@ -270,13 +272,13 @@ calc_loss(name_list)
     \setlength{\tabcolsep}{7pt}
     \begin{tabularx}{\textwidth}{|>{\RaggedRight\arraybackslash}p{0.23\textwidth}|>{\RaggedRight\arraybackslash}X|>{\RaggedRight\arraybackslash}X|>{\RaggedRight\arraybackslash}X|}
         \hline
-        & \textbf{Python Serial} & \textbf{C++ Serial} & \textbf{CUDA Parallel} \\
+        & \textbf{PyTorch Serial} & \textbf{C++ Serial} & \textbf{CUDA Parallel} \\
         \hline
-        \datarow{200}{1}{64} & 44.68 seconds & 0.0644 seconds & 0.114 seconds\\
+        \datarow{2500}{4}{256}{8} & 5.2244 seconds (8.919x) & 46.5978 seconds & 0.1949 seconds (239.0856x)\\
         \hline
-        \datarow{1,000}{2}{128} & 1721.97 seconds (28.7 minutes) & 2.16 seconds & 0.158 seconds\\
+        \datarow{5000}{6}{384}{12} & 14.5409 seconds (22.589x) & 328.4692 seconds & 0.7374 seconds (445.44x)\\
         \hline
-        \datarow{10,000}{8}{512} & Skipped (Too long) & 1,583.08 seconds (26.4 minutes) & 3.52 seconds \\
+        \datarow{10,000}{8}{512}{16} & 38.6489 (40.946x) & 1582.5279 seconds & 2.9164 seconds (542.63x)\\
         \hline
     \end{tabularx}
 \end{frame}

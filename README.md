@@ -10,8 +10,8 @@ The repository includes the full project stack around that comparison: benchmark
 
 ## Important Project Files
 
-- [Final report (PDF)](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/project_report/report.pdf)
-- [Project presentation (PDF)](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/slides/project_presentation.pdf)
+- [Final report (PDF)](project_report/report.pdf)
+- [Project presentation (PDF)](slides/project_presentation.pdf)
 
 ## Commands
 

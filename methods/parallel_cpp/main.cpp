@@ -4,7 +4,6 @@
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
-#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -18,7 +17,7 @@ namespace {
 
 struct CliOptions {
     std::string mode;
-    std::filesystem::path dataset;
+    std::string dataset;
     std::string label = "custom";
     int num_steps = -1;
     int n_layer = -1;
@@ -29,8 +28,7 @@ struct CliOptions {
     std::uint32_t seed = 42;
 };
 
-const std::filesystem::path kDefaultFixtureDir =
-    std::filesystem::path("training_data") / "fixtures" / "small_case";
+const std::string kDefaultFixtureDir = "training_data/fixtures/small_case";
 
 struct BatchBucket {
     int seq_length = 0;
@@ -45,6 +43,17 @@ BatchTokens make_batch_from_bucket(BatchBucket* bucket) {
     batch.batch_seq_length = bucket->seq_length;
     bucket->sequence_count = 0;
     return batch;
+}
+
+std::string join_path(const std::string& dir, const std::string& filename) {
+    if (dir.empty()) {
+        return filename;
+    }
+    const char last = dir[dir.size() - 1];
+    if (last == '/' || last == '\\') {
+        return dir + filename;
+    }
+    return dir + "/" + filename;
 }
 
 std::string require_value(int argc, char** argv, int* index) {
@@ -92,10 +101,10 @@ CliOptions parse_cli(int argc, char** argv) {
     return options;
 }
 
-std::vector<std::string> load_docs(const std::filesystem::path& dataset_path) {
-    std::ifstream input(dataset_path);
+std::vector<std::string> load_docs(const std::string& dataset_path) {
+    std::ifstream input(dataset_path.c_str());
     if (!input) {
-        throw std::runtime_error("failed to open dataset: " + dataset_path.string());
+        throw std::runtime_error("failed to open dataset: " + dataset_path);
     }
     std::vector<std::string> docs;
     std::string line;
@@ -194,10 +203,10 @@ std::vector<BatchTokens> build_length_bucketed_batches(
     return batches;
 }
 
-std::unordered_map<std::string, std::string> parse_manifest(const std::filesystem::path& manifest_path) {
-    std::ifstream input(manifest_path);
+std::unordered_map<std::string, std::string> parse_manifest(const std::string& manifest_path) {
+    std::ifstream input(manifest_path.c_str());
     if (!input) {
-        throw std::runtime_error("failed to open manifest: " + manifest_path.string());
+        throw std::runtime_error("failed to open manifest: " + manifest_path);
     }
     std::unordered_map<std::string, std::string> manifest;
     std::string line;
@@ -226,16 +235,16 @@ std::vector<int> parse_int_list(const std::string& text) {
     return values;
 }
 
-std::vector<float> read_f32_file(const std::filesystem::path& path) {
-    std::ifstream input(path, std::ios::binary);
+std::vector<float> read_f32_file(const std::string& path) {
+    std::ifstream input(path.c_str(), std::ios::binary);
     if (!input) {
-        throw std::runtime_error("failed to open binary file: " + path.string());
+        throw std::runtime_error("failed to open binary file: " + path);
     }
     input.seekg(0, std::ios::end);
     const std::streamsize file_size = input.tellg();
     input.seekg(0, std::ios::beg);
     if (file_size % static_cast<std::streamsize>(sizeof(float)) != 0) {
-        throw std::runtime_error("binary file is not float32-aligned: " + path.string());
+        throw std::runtime_error("binary file is not float32-aligned: " + path);
     }
     std::vector<float> values(static_cast<std::size_t>(file_size / static_cast<std::streamsize>(sizeof(float))));
     input.read(reinterpret_cast<char*>(values.data()), file_size);
@@ -267,7 +276,7 @@ double compare_arrays(const std::string& label, const std::vector<float>& actual
 }
 
 int run_validate(const CliOptions&) {
-    const std::filesystem::path manifest_path = kDefaultFixtureDir / "manifest.txt";
+    const std::string manifest_path = join_path(kDefaultFixtureDir, "manifest.txt");
     const auto manifest = parse_manifest(manifest_path);
     ModelConfig config;
     config.n_layer = std::stoi(manifest.at("n_layer"));
@@ -280,7 +289,7 @@ int run_validate(const CliOptions&) {
     const double epsilon = std::stod(manifest.at("validation_epsilon"));
 
     Model host_model = make_empty_model(config);
-    load_model_from_f32(host_model, read_f32_file(kDefaultFixtureDir / manifest.at("weights_init_file")));
+    load_model_from_f32(host_model, read_f32_file(join_path(kDefaultFixtureDir, manifest.at("weights_init_file"))));
     DeviceModel device_model = upload_model_to_device(host_model);
     BatchTokens batch;
     batch.tokens = tokens;
@@ -288,8 +297,8 @@ int run_validate(const CliOptions&) {
     batch.batch_seq_length = static_cast<int>(tokens.size());
     try {
         const KernelResult result = run_forward_batched(device_model, batch);
-        compare_arrays("logits", result.logits, read_f32_file(kDefaultFixtureDir / manifest.at("expected_logits_file")), epsilon);
-        compare_arrays("loss", {result.loss}, read_f32_file(kDefaultFixtureDir / manifest.at("expected_loss_file")), epsilon);
+        compare_arrays("logits", result.logits, read_f32_file(join_path(kDefaultFixtureDir, manifest.at("expected_logits_file"))), epsilon);
+        compare_arrays("loss", {result.loss}, read_f32_file(join_path(kDefaultFixtureDir, manifest.at("expected_loss_file"))), epsilon);
         std::cout << "validation=pass\n";
     } catch (...) {
         free_device_model(&device_model);

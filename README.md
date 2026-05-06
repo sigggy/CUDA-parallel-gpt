@@ -10,9 +10,8 @@ The repository includes the full project stack around that comparison: benchmark
 
 ## Important Project Files
 
-- [Final report (PDF)](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/report/report.pdf)
-- [Final report source](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/report/report.tex)
-- [Report template source](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/report_template/report.tex)
+- [Final report (PDF)](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/project_report/report.pdf)
+- [Final report source](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/project_report/report.tex)
 - [Project presentation (PDF)](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/slides/project_presentation.pdf)
 - [Presentation source](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/slides/project_presentation.tex)
 - [Benchmark driver](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/scripts/run_benchmarks.py)
@@ -51,5 +50,4 @@ Run the benchmark sweep and inspect the preset matrix:
 python3 scripts/run_benchmarks.py data/benchmark_results.json
 python3 scripts/benchmark_matrix.py
 ```
-
 

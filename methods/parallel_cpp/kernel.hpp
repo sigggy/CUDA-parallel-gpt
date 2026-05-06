@@ -117,7 +117,6 @@ inline KernelLaunch make_1d_launch(std::size_t work_items, int threads = 256) {
 Model make_empty_model(const ModelConfig &config);
 Model initialize_model(const ModelConfig &config, std::uint32_t seed);
 void load_model_from_f32(Model &host_model, const std::vector<float> &values);
-std::vector<float> flatten_model_values(const Model &host_model);
 DeviceModel upload_model_to_device(const Model &host_model);
 void free_device_model(DeviceModel *device_model);
 KernelResult run_forward_batched(const DeviceModel &device_model,

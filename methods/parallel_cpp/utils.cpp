@@ -7,10 +7,6 @@ namespace {
 
 constexpr float kInitStd = 0.08f;
 
-void append_values(std::vector<float>* out, const std::vector<float>& values) {
-    out->insert(out->end(), values.begin(), values.end());
-}
-
 void assign_random(std::vector<float>* values, std::mt19937* rng) {
     std::normal_distribution<float> normal(0.0f, kInitStd);
     for (float& value : *values) {
@@ -80,26 +76,4 @@ void load_model_from_f32(Model& host_model, const std::vector<float>& values) {
     if (cursor != values.size()) {
         throw std::runtime_error("weights file is larger than expected");
     }
-}
-
-std::vector<float> flatten_model_values(const Model& host_model) {
-    std::vector<float> values;
-    std::size_t total_size = host_model.wte.size() + host_model.wpe.size() + host_model.lm_head.size();
-    for (const LayerWeights& layer : host_model.layers) {
-        total_size += layer.attn_wq.size() + layer.attn_wk.size() + layer.attn_wv.size() + layer.attn_wo.size() +
-                      layer.mlp_fc1.size() + layer.mlp_fc2.size();
-    }
-    values.reserve(total_size);
-    append_values(&values, host_model.wte);
-    append_values(&values, host_model.wpe);
-    append_values(&values, host_model.lm_head);
-    for (const LayerWeights& layer : host_model.layers) {
-        append_values(&values, layer.attn_wq);
-        append_values(&values, layer.attn_wk);
-        append_values(&values, layer.attn_wv);
-        append_values(&values, layer.attn_wo);
-        append_values(&values, layer.mlp_fc1);
-        append_values(&values, layer.mlp_fc2);
-    }
-    return values;
 }

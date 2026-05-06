@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Benchmark Results</title>
+  <style>
+    body {
+      color: #1f2933;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.4;
+      margin: 24px;
+    }
+    h1, h2 {
+      margin: 0 0 12px;
+    }
+    h2 {
+      margin-top: 28px;
+    }
+    table {
+      border-collapse: collapse;
+      margin-bottom: 24px;
+      width: 100%;
+    }
+    th, td {
+      border: 1px solid #d6dde6;
+      padding: 7px 9px;
+      text-align: left;
+      white-space: nowrap;
+    }
+    th {
+      background: #eef2f7;
+      font-weight: 600;
+    }
+    .preset-row th {
+      background: #dbeafe;
+      color: #102a43;
+      font-size: 1rem;
+    }
+    .meta {
+      color: #52616b;
+      margin: 0 0 18px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Benchmark Results</h1>
+  <p class="meta">Dataset: /home/sigbot/parallel-gpt/training_data/datasets/names.txt<br>Default batch size: 512</p>
+
+  <h2>Preset Info</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Preset</th>
+        <th>n_layer</th>
+        <th>n_embd</th>
+        <th>block_size</th>
+        <th>n_head</th>
+        <th>steps</th>
+      </tr>
+    </thead>
+    <tbody>
+<tr><td>small</td><td>1</td><td>64</td><td>128</td><td>4</td><td>200</td></tr>
+<tr><td>medium</td><td>2</td><td>128</td><td>128</td><td>8</td><td>1000</td></tr>
+<tr><td>large</td><td>4</td><td>256</td><td>256</td><td>8</td><td>2500</td></tr>
+<tr><td>very-large</td><td>6</td><td>384</td><td>512</td><td>12</td><td>5000</td></tr>
+<tr><td>extra-large</td><td>8</td><td>512</td><td>512</td><td>16</td><td>10000</td></tr>
+<tr><td>names-1k</td><td>4</td><td>128</td><td>512</td><td>8</td><td>1000</td></tr>
+<tr><td>names-2k</td><td>4</td><td>128</td><td>512</td><td>8</td><td>2000</td></tr>
+<tr><td>names-3k</td><td>4</td><td>128</td><td>512</td><td>8</td><td>3000</td></tr>
+<tr><td>names-4k</td><td>4</td><td>128</td><td>512</td><td>8</td><td>4000</td></tr>
+<tr><td>names-6k</td><td>4</td><td>128</td><td>512</td><td>8</td><td>6000</td></tr>
+<tr><td>names-8k</td><td>4</td><td>128</td><td>512</td><td>8</td><td>8000</td></tr>
+<tr><td>names-10k</td><td>4</td><td>128</td><td>512</td><td>8</td><td>10000</td></tr>
+<tr><td>names-12k</td><td>4</td><td>128</td><td>512</td><td>8</td><td>12000</td></tr>
+<tr><td>names-16k</td><td>4</td><td>128</td><td>512</td><td>8</td><td>16000</td></tr>
+<tr><td>names-20k</td><td>4</td><td>128</td><td>512</td><td>8</td><td>20000</td></tr>
+<tr><td>names-24k</td><td>4</td><td>128</td><td>512</td><td>8</td><td>24000</td></tr>
+<tr><td>names-28k</td><td>4</td><td>128</td><td>512</td><td>8</td><td>28000</td></tr>
+<tr><td>names-30k</td><td>4</td><td>128</td><td>512</td><td>8</td><td>30000</td></tr>
+<tr><td>names-31k</td><td>4</td><td>128</td><td>512</td><td>8</td><td>31000</td></tr>
+<tr><td>names-32k</td><td>4</td><td>128</td><td>512</td><td>8</td><td>32000</td></tr>
+<tr><td>model-small-1k</td><td>1</td><td>64</td><td>512</td><td>4</td><td>5000</td></tr>
+<tr><td>model-medium-1k</td><td>2</td><td>128</td><td>512</td><td>8</td><td>5000</td></tr>
+<tr><td>model-large-1k</td><td>4</td><td>256</td><td>512</td><td>8</td><td>5000</td></tr>
+<tr><td>model-very-large-1k</td><td>6</td><td>384</td><td>512</td><td>12</td><td>5000</td></tr>
+<tr><td>model-extra-large-1k</td><td>8</td><td>512</td><td>512</td><td>16</td><td>5000</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Results</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Method</th>
+        <th>Preset</th>
+        <th>Status</th>
+        <th>Steps</th>
+        <th>Loss</th>
+        <th>Fwd pass (s)</th>
+        <th>Total (s)</th>
+        <th>vs serial_cpp</th>
+        <th>vs serial_python</th>
+      </tr>
+    </thead>
+    <tbody>
+<tr class="preset-row"><th colspan="9">preset: small</th></tr>
+<tr><td>serial_python</td><td>small</td><td>pass</td><td>200</td><td>3.6268</td><td>44.4888</td><td>44.5370</td><td>0.00&times;</td><td>1.00&times;</td></tr>
+<tr><td>unbatched_torch</td><td>small</td><td>pass</td><td>200</td><td>3.6268</td><td>0.3469</td><td>1.0364</td><td>0.06&times;</td><td>42.97&times;</td></tr>
+<tr><td>batched_torch</td><td>small</td><td>pass</td><td>200</td><td>3.5665</td><td>0.2266</td><td>0.8860</td><td>0.07&times;</td><td>50.27&times;</td></tr>
+<tr><td>serial_cpp</td><td>small</td><td>pass</td><td>200</td><td>3.0189</td><td>0.0483</td><td>0.0637</td><td>1.00&times;</td><td>699.21&times;</td></tr>
+<tr><td>parallel_cpp</td><td>small</td><td>pass</td><td>200</td><td>3.2507</td><td>0.0052</td><td>0.1092</td><td>0.58&times;</td><td>408.01&times;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: medium</th></tr>
+<tr><td>serial_python</td><td>medium</td><td>pass</td><td>1000</td><td>4.3392</td><td>1732.5465</td><td>1732.8937</td><td>0.00&times;</td><td>1.00&times;</td></tr>
+<tr><td>unbatched_torch</td><td>medium</td><td>pass</td><td>1000</td><td>4.3392</td><td>1.2896</td><td>2.1739</td><td>0.99&times;</td><td>797.14&times;</td></tr>
+<tr><td>batched_torch</td><td>medium</td><td>pass</td><td>1000</td><td>4.0337</td><td>0.2325</td><td>1.0498</td><td>2.06&times;</td><td>1650.69&times;</td></tr>
+<tr><td>serial_cpp</td><td>medium</td><td>pass</td><td>1000</td><td>4.9070</td><td>2.1337</td><td>2.1582</td><td>1.00&times;</td><td>802.94&times;</td></tr>
+<tr><td>parallel_cpp</td><td>medium</td><td>pass</td><td>1000</td><td>5.1015</td><td>0.0315</td><td>0.1493</td><td>14.46&times;</td><td>11608.99&times;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: large</th></tr>
+<tr><td>serial_python</td><td>large</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>large</td><td>pass</td><td>2500</td><td>15.3292</td><td>5.1603</td><td>7.3584</td><td>6.33&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>large</td><td>pass</td><td>2500</td><td>16.9145</td><td>0.2671</td><td>2.3304</td><td>19.98&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>large</td><td>pass</td><td>2500</td><td>12.5507</td><td>46.4760</td><td>46.5566</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>large</td><td>pass</td><td>2500</td><td>14.3315</td><td>0.1974</td><td>0.3718</td><td>125.21&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: very-large</th></tr>
+<tr><td>serial_python</td><td>very-large</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>very-large</td><td>pass</td><td>5000</td><td>34.8702</td><td>14.4125</td><td>20.1027</td><td>16.29&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>very-large</td><td>pass</td><td>5000</td><td>31.2555</td><td>0.3688</td><td>5.7767</td><td>56.69&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>very-large</td><td>pass</td><td>5000</td><td>44.8445</td><td>327.2435</td><td>327.4859</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>very-large</td><td>pass</td><td>5000</td><td>32.9686</td><td>0.7147</td><td>1.0370</td><td>315.81&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: extra-large</th></tr>
+<tr><td>serial_python</td><td>extra-large</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>extra-large</td><td>pass</td><td>10000</td><td>59.1044</td><td>38.8223</td><td>51.3354</td><td>30.77&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>extra-large</td><td>pass</td><td>10000</td><td>63.4794</td><td>0.6801</td><td>12.5106</td><td>126.27&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>extra-large</td><td>pass</td><td>10000</td><td>46.9003</td><td>1579.1208</td><td>1579.6712</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>extra-large</td><td>pass</td><td>10000</td><td>59.6070</td><td>2.8896</td><td>3.5086</td><td>450.23&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: names-1k</th></tr>
+<tr><td>serial_python</td><td>names-1k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>names-1k</td><td>pass</td><td>1000</td><td>5.8112</td><td>2.2998</td><td>3.3741</td><td>1.27&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>names-1k</td><td>pass</td><td>1000</td><td>5.3074</td><td>0.2427</td><td>1.2563</td><td>3.41&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>names-1k</td><td>pass</td><td>1000</td><td>5.3037</td><td>4.2502</td><td>4.2819</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>names-1k</td><td>pass</td><td>1000</td><td>5.5237</td><td>0.0420</td><td>0.1667</td><td>25.68&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: names-2k</th></tr>
+<tr><td>serial_python</td><td>names-2k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>names-2k</td><td>pass</td><td>2000</td><td>4.6822</td><td>4.1082</td><td>5.2281</td><td>1.63&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>names-2k</td><td>pass</td><td>2000</td><td>5.9238</td><td>0.2452</td><td>1.2619</td><td>6.77&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>names-2k</td><td>pass</td><td>2000</td><td>4.7483</td><td>8.5127</td><td>8.5386</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>names-2k</td><td>pass</td><td>2000</td><td>5.4030</td><td>0.0752</td><td>0.2284</td><td>37.38&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: names-3k</th></tr>
+<tr><td>serial_python</td><td>names-3k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>names-3k</td><td>pass</td><td>3000</td><td>5.5377</td><td>6.0694</td><td>7.2563</td><td>1.77&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>names-3k</td><td>pass</td><td>3000</td><td>5.8851</td><td>0.2476</td><td>1.2652</td><td>10.15&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>names-3k</td><td>pass</td><td>3000</td><td>5.5090</td><td>12.8072</td><td>12.8397</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>names-3k</td><td>pass</td><td>3000</td><td>5.5236</td><td>0.1096</td><td>0.2604</td><td>49.30&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: names-4k</th></tr>
+<tr><td>serial_python</td><td>names-4k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>names-4k</td><td>pass</td><td>4000</td><td>5.1896</td><td>7.9658</td><td>9.2178</td><td>1.85&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>names-4k</td><td>pass</td><td>4000</td><td>6.0254</td><td>0.2696</td><td>1.2756</td><td>13.40&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>names-4k</td><td>pass</td><td>4000</td><td>4.0999</td><td>17.0648</td><td>17.0934</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>names-4k</td><td>pass</td><td>4000</td><td>5.5636</td><td>0.1448</td><td>0.2779</td><td>61.50&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: names-6k</th></tr>
+<tr><td>serial_python</td><td>names-6k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>names-6k</td><td>pass</td><td>6000</td><td>6.5863</td><td>11.8689</td><td>13.2562</td><td>1.94&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>names-6k</td><td>pass</td><td>6000</td><td>5.7015</td><td>0.2706</td><td>1.2800</td><td>20.13&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>names-6k</td><td>pass</td><td>6000</td><td>5.9246</td><td>25.7287</td><td>25.7604</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>names-6k</td><td>pass</td><td>6000</td><td>5.1767</td><td>0.2101</td><td>0.3480</td><td>74.03&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: names-8k</th></tr>
+<tr><td>serial_python</td><td>names-8k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>names-8k</td><td>pass</td><td>8000</td><td>4.4259</td><td>15.8179</td><td>17.2951</td><td>2.00&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>names-8k</td><td>pass</td><td>8000</td><td>5.2967</td><td>0.2795</td><td>1.3013</td><td>26.52&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>names-8k</td><td>pass</td><td>8000</td><td>5.3648</td><td>34.4804</td><td>34.5138</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>names-8k</td><td>pass</td><td>8000</td><td>5.0599</td><td>0.2451</td><td>0.3749</td><td>92.07&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: names-10k</th></tr>
+<tr><td>serial_python</td><td>names-10k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>names-10k</td><td>pass</td><td>10000</td><td>7.3601</td><td>19.4995</td><td>21.0759</td><td>2.06&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>names-10k</td><td>pass</td><td>10000</td><td>5.7206</td><td>0.2864</td><td>1.3084</td><td>33.11&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>names-10k</td><td>pass</td><td>10000</td><td>5.1448</td><td>43.2887</td><td>43.3217</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>names-10k</td><td>pass</td><td>10000</td><td>5.2042</td><td>0.3032</td><td>0.4397</td><td>98.53&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: names-12k</th></tr>
+<tr><td>serial_python</td><td>names-12k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>names-12k</td><td>pass</td><td>12000</td><td>6.4129</td><td>23.6778</td><td>25.3834</td><td>2.06&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>names-12k</td><td>pass</td><td>12000</td><td>5.9814</td><td>0.2966</td><td>1.3179</td><td>39.66&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>names-12k</td><td>pass</td><td>12000</td><td>5.1784</td><td>52.2287</td><td>52.2612</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>names-12k</td><td>pass</td><td>12000</td><td>5.1194</td><td>0.3707</td><td>0.4958</td><td>105.40&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: names-16k</th></tr>
+<tr><td>serial_python</td><td>names-16k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>names-16k</td><td>pass</td><td>16000</td><td>6.6280</td><td>31.1225</td><td>33.0516</td><td>2.12&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>names-16k</td><td>pass</td><td>16000</td><td>6.0254</td><td>0.3324</td><td>1.3779</td><td>50.91&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>names-16k</td><td>pass</td><td>16000</td><td>6.4805</td><td>70.1149</td><td>70.1502</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>names-16k</td><td>pass</td><td>16000</td><td>5.7019</td><td>0.4858</td><td>0.6210</td><td>112.97&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: names-20k</th></tr>
+<tr><td>serial_python</td><td>names-20k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>names-20k</td><td>pass</td><td>20000</td><td>4.4812</td><td>39.1420</td><td>41.3123</td><td>2.12&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>names-20k</td><td>pass</td><td>20000</td><td>5.9254</td><td>0.3376</td><td>1.3761</td><td>63.51&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>names-20k</td><td>pass</td><td>20000</td><td>6.6525</td><td>87.3594</td><td>87.3938</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>names-20k</td><td>pass</td><td>20000</td><td>5.2386</td><td>0.5663</td><td>0.6983</td><td>125.14&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: names-24k</th></tr>
+<tr><td>serial_python</td><td>names-24k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>names-24k</td><td>pass</td><td>24000</td><td>6.9226</td><td>48.2111</td><td>50.6480</td><td>2.05&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>names-24k</td><td>pass</td><td>24000</td><td>5.9254</td><td>0.3526</td><td>1.3865</td><td>75.03&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>names-24k</td><td>pass</td><td>24000</td><td>6.1103</td><td>103.9973</td><td>104.0329</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>names-24k</td><td>pass</td><td>24000</td><td>5.2386</td><td>0.6832</td><td>0.8114</td><td>128.21&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: names-28k</th></tr>
+<tr><td>serial_python</td><td>names-28k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>names-28k</td><td>pass</td><td>28000</td><td>6.5415</td><td>55.0685</td><td>57.7045</td><td>2.10&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>names-28k</td><td>pass</td><td>28000</td><td>5.6361</td><td>0.3695</td><td>1.4098</td><td>85.82&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>names-28k</td><td>pass</td><td>28000</td><td>5.2738</td><td>120.9542</td><td>120.9918</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>names-28k</td><td>pass</td><td>28000</td><td>5.1441</td><td>0.7777</td><td>0.9139</td><td>132.39&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: names-30k</th></tr>
+<tr><td>serial_python</td><td>names-30k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>names-30k</td><td>pass</td><td>30000</td><td>5.4726</td><td>58.0369</td><td>60.7545</td><td>2.13&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>names-30k</td><td>pass</td><td>30000</td><td>5.7356</td><td>0.3806</td><td>1.4417</td><td>89.87&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>names-30k</td><td>pass</td><td>30000</td><td>6.3472</td><td>129.5313</td><td>129.5676</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>names-30k</td><td>pass</td><td>30000</td><td>5.0393</td><td>0.8039</td><td>0.9372</td><td>138.24&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: names-31k</th></tr>
+<tr><td>serial_python</td><td>names-31k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>names-31k</td><td>pass</td><td>31000</td><td>5.5007</td><td>61.4160</td><td>64.2116</td><td>2.08&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>names-31k</td><td>pass</td><td>31000</td><td>5.7735</td><td>0.3858</td><td>1.4276</td><td>93.78&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>names-31k</td><td>pass</td><td>31000</td><td>4.7391</td><td>133.8366</td><td>133.8735</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>names-31k</td><td>pass</td><td>31000</td><td>5.2561</td><td>0.8203</td><td>0.9551</td><td>140.17&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: names-32k</th></tr>
+<tr><td>serial_python</td><td>names-32k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>names-32k</td><td>pass</td><td>32000</td><td>6.5912</td><td>61.7826</td><td>64.6108</td><td>2.14&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>names-32k</td><td>pass</td><td>32000</td><td>7.0260</td><td>0.4341</td><td>1.4728</td><td>93.83&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>names-32k</td><td>pass</td><td>32000</td><td>5.4055</td><td>138.1558</td><td>138.1900</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>names-32k</td><td>pass</td><td>32000</td><td>5.7755</td><td>0.8519</td><td>0.9935</td><td>139.10&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: model-small-1k</th></tr>
+<tr><td>serial_python</td><td>model-small-1k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>model-small-1k</td><td>pass</td><td>5000</td><td>3.2084</td><td>3.3710</td><td>4.3336</td><td>0.28&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>model-small-1k</td><td>pass</td><td>5000</td><td>3.4251</td><td>0.2358</td><td>0.9168</td><td>1.34&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>model-small-1k</td><td>pass</td><td>5000</td><td>3.9515</td><td>1.2146</td><td>1.2288</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>model-small-1k</td><td>pass</td><td>5000</td><td>3.7313</td><td>0.0931</td><td>0.1975</td><td>6.22&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: model-medium-1k</th></tr>
+<tr><td>serial_python</td><td>model-medium-1k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>model-medium-1k</td><td>pass</td><td>5000</td><td>3.8653</td><td>5.6807</td><td>6.8103</td><td>1.58&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>model-medium-1k</td><td>pass</td><td>5000</td><td>4.8513</td><td>0.2456</td><td>1.0977</td><td>9.80&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>model-medium-1k</td><td>pass</td><td>5000</td><td>4.5595</td><td>10.7362</td><td>10.7609</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>model-medium-1k</td><td>pass</td><td>5000</td><td>4.5288</td><td>0.1379</td><td>0.2601</td><td>41.38&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: model-large-1k</th></tr>
+<tr><td>serial_python</td><td>model-large-1k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>model-large-1k</td><td>pass</td><td>5000</td><td>8.1508</td><td>10.0850</td><td>12.4466</td><td>7.51&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>model-large-1k</td><td>pass</td><td>5000</td><td>20.4443</td><td>0.2859</td><td>2.3706</td><td>39.45&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>model-large-1k</td><td>pass</td><td>5000</td><td>14.6315</td><td>93.4409</td><td>93.5261</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>model-large-1k</td><td>pass</td><td>5000</td><td>12.4051</td><td>0.3264</td><td>0.5042</td><td>185.50&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: model-very-large-1k</th></tr>
+<tr><td>serial_python</td><td>model-very-large-1k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>model-very-large-1k</td><td>pass</td><td>5000</td><td>34.8702</td><td>14.5257</td><td>20.1953</td><td>16.21&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>model-very-large-1k</td><td>pass</td><td>5000</td><td>31.2555</td><td>0.3548</td><td>5.7929</td><td>56.50&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>model-very-large-1k</td><td>pass</td><td>5000</td><td>44.8445</td><td>327.0360</td><td>327.2794</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>model-very-large-1k</td><td>pass</td><td>5000</td><td>32.9686</td><td>0.7378</td><td>1.0660</td><td>307.03&times;</td><td>&mdash;</td></tr>
+<tr class="preset-row"><th colspan="9">preset: model-extra-large-1k</th></tr>
+<tr><td>serial_python</td><td>model-extra-large-1k</td><td>skipped</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>unbatched_torch</td><td>model-extra-large-1k</td><td>pass</td><td>5000</td><td>46.0981</td><td>20.0382</td><td>32.2935</td><td>24.30&times;</td><td>&mdash;</td></tr>
+<tr><td>batched_torch</td><td>model-extra-large-1k</td><td>pass</td><td>5000</td><td>52.0422</td><td>0.4700</td><td>12.3399</td><td>63.59&times;</td><td>&mdash;</td></tr>
+<tr><td>serial_cpp</td><td>model-extra-large-1k</td><td>pass</td><td>5000</td><td>50.7095</td><td>784.0979</td><td>784.6355</td><td>1.00&times;</td><td>&mdash;</td></tr>
+<tr><td>parallel_cpp</td><td>model-extra-large-1k</td><td>pass</td><td>5000</td><td>60.9715</td><td>1.4912</td><td>2.1002</td><td>373.60&times;</td><td>&mdash;</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

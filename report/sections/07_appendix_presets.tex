@@ -1,0 +1,29 @@
+\section{Benchmark Presets}
+\label{appendix:presets}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lccccc}
+\hline
+\textbf{Preset} & \textbf{n\_layer} & \textbf{n\_embd} & \textbf{block\_size} & \textbf{n\_head} & \textbf{steps} \\
+\hline
+
+\hline
+S            & 1 & 64  & 128 & 4  & 200   \\
+M            & 2 & 128 & 128 & 8  & 1000  \\
+L            & 4 & 256 & 256 & 8  & 2500  \\
+VL           & 6 & 384 & 512 & 12 & 5000  \\
+XL           & 8 & 512 & 512 & 16 & 10000 \\
+
+\hline
+MS5          & 1 & 64  & 512 & 4  & 5000 \\
+MM5          & 2 & 128 & 512 & 8  & 5000 \\
+ML5          & 4 & 256 & 512 & 8  & 5000 \\
+MVL5         & 6 & 384 & 512 & 12 & 5000 \\
+MXL5         & 8 & 512 & 512 & 16 & 5000 \\
+
+\hline
+\end{tabular}
+\caption{Model Configurations Used in Experiments}
+\label{tab:model_configs}
+\end{table}

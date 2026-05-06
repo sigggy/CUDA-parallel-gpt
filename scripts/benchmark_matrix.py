@@ -9,6 +9,7 @@ from dataclasses import asdict, dataclass
 @dataclass(frozen=True)
 class BenchmarkRun:
     label: str
+    regime: int
     n_layer: int
     n_embd: int
     block_size: int
@@ -17,31 +18,31 @@ class BenchmarkRun:
 
 
 BENCHMARK_RUNS: tuple[BenchmarkRun, ...] = (
-    BenchmarkRun("small", n_layer=1, n_embd=64, block_size=128, n_head=4, steps=200),
-    BenchmarkRun("medium", n_layer=2, n_embd=128, block_size=128, n_head=8, steps=1000),
-    BenchmarkRun("large", n_layer=4, n_embd=256, block_size=256, n_head=8, steps=2500),
-    BenchmarkRun("very-large", n_layer=6, n_embd=384, block_size=512, n_head=12, steps=5000),
-    BenchmarkRun("extra-large", n_layer=8, n_embd=512, block_size=512, n_head=16, steps=10000),
-    BenchmarkRun("names-1k",    n_layer=4, n_embd=128, block_size=512, n_head=8, steps=1000),
-    BenchmarkRun("names-2k",    n_layer=4, n_embd=128, block_size=512, n_head=8, steps=2000),
-    BenchmarkRun("names-3k",    n_layer=4, n_embd=128, block_size=512, n_head=8, steps=3000),
-    BenchmarkRun("names-4k",    n_layer=4, n_embd=128, block_size=512, n_head=8, steps=4000),
-    BenchmarkRun("names-6k",    n_layer=4, n_embd=128, block_size=512, n_head=8, steps=6000),
-    BenchmarkRun("names-8k",    n_layer=4, n_embd=128, block_size=512, n_head=8, steps=8000),
-    BenchmarkRun("names-10k",   n_layer=4, n_embd=128, block_size=512, n_head=8, steps=10000),
-    BenchmarkRun("names-12k",   n_layer=4, n_embd=128, block_size=512, n_head=8, steps=12000),
-    BenchmarkRun("names-16k",   n_layer=4, n_embd=128, block_size=512, n_head=8, steps=16000),
-    BenchmarkRun("names-20k",   n_layer=4, n_embd=128, block_size=512, n_head=8, steps=20000),
-    BenchmarkRun("names-24k",   n_layer=4, n_embd=128, block_size=512, n_head=8, steps=24000),
-    BenchmarkRun("names-28k",   n_layer=4, n_embd=128, block_size=512, n_head=8, steps=28000),
-    BenchmarkRun("names-30k",   n_layer=4, n_embd=128, block_size=512, n_head=8, steps=30000),
-    BenchmarkRun("names-31k",   n_layer=4, n_embd=128, block_size=512, n_head=8, steps=31000),
-    BenchmarkRun("names-32k",   n_layer=4, n_embd=128, block_size=512, n_head=8, steps=32000),
-    BenchmarkRun("model-small-5k", n_layer=1, n_embd=64, block_size=512, n_head=4, steps=5000),
-    BenchmarkRun("model-medium-5k", n_layer=2, n_embd=128, block_size=512, n_head=8, steps=5000),
-    BenchmarkRun("model-large-5k", n_layer=4, n_embd=256, block_size=512, n_head=8, steps=5000),
-    BenchmarkRun("model-very-large-5k", n_layer=6, n_embd=384, block_size=512, n_head=12, steps=5000),
-    BenchmarkRun("model-extra-large-5k", n_layer=8, n_embd=512, block_size=512, n_head=16, steps=5000),
+    BenchmarkRun("small", regime=3, n_layer=1, n_embd=64, block_size=128, n_head=4, steps=2000),
+    BenchmarkRun("medium", regime=3, n_layer=2, n_embd=128, block_size=128, n_head=8, steps=5000),
+    BenchmarkRun("large", regime=3, n_layer=4, n_embd=256, block_size=256, n_head=8, steps=10000),
+    BenchmarkRun("very-large", regime=3, n_layer=6, n_embd=384, block_size=512, n_head=12, steps=20000),
+    BenchmarkRun("extra-large", regime=3, n_layer=8, n_embd=512, block_size=512, n_head=16, steps=30000),
+    BenchmarkRun("names-1k", regime=1, n_layer=4, n_embd=128, block_size=512, n_head=8, steps=1000),
+    BenchmarkRun("names-2k", regime=1, n_layer=4, n_embd=128, block_size=512, n_head=8, steps=2000),
+    BenchmarkRun("names-3k", regime=1, n_layer=4, n_embd=128, block_size=512, n_head=8, steps=3000),
+    BenchmarkRun("names-4k", regime=1, n_layer=4, n_embd=128, block_size=512, n_head=8, steps=4000),
+    BenchmarkRun("names-6k", regime=1, n_layer=4, n_embd=128, block_size=512, n_head=8, steps=6000),
+    BenchmarkRun("names-8k", regime=1, n_layer=4, n_embd=128, block_size=512, n_head=8, steps=8000),
+    BenchmarkRun("names-10k", regime=1, n_layer=4, n_embd=128, block_size=512, n_head=8, steps=10000),
+    BenchmarkRun("names-12k", regime=1, n_layer=4, n_embd=128, block_size=512, n_head=8, steps=12000),
+    BenchmarkRun("names-16k", regime=1, n_layer=4, n_embd=128, block_size=512, n_head=8, steps=16000),
+    BenchmarkRun("names-20k", regime=1, n_layer=4, n_embd=128, block_size=512, n_head=8, steps=20000),
+    BenchmarkRun("names-24k", regime=1, n_layer=4, n_embd=128, block_size=512, n_head=8, steps=24000),
+    BenchmarkRun("names-28k", regime=1, n_layer=4, n_embd=128, block_size=512, n_head=8, steps=28000),
+    BenchmarkRun("names-30k", regime=1, n_layer=4, n_embd=128, block_size=512, n_head=8, steps=30000),
+    BenchmarkRun("names-31k", regime=1, n_layer=4, n_embd=128, block_size=512, n_head=8, steps=31000),
+    BenchmarkRun("names-32k", regime=1, n_layer=4, n_embd=128, block_size=512, n_head=8, steps=32000),
+    BenchmarkRun("model-small-5k", regime=2, n_layer=1, n_embd=64, block_size=512, n_head=4, steps=5000),
+    BenchmarkRun("model-medium-5k", regime=2, n_layer=2, n_embd=128, block_size=512, n_head=8, steps=5000),
+    BenchmarkRun("model-large-5k", regime=2, n_layer=4, n_embd=256, block_size=512, n_head=8, steps=5000),
+    BenchmarkRun("model-very-large-5k", regime=2, n_layer=6, n_embd=384, block_size=512, n_head=12, steps=5000),
+    BenchmarkRun("model-extra-large-5k", regime=2, n_layer=8, n_embd=512, block_size=512, n_head=16, steps=5000),
 )
 
 RUN_BY_LABEL = {run.label: run for run in BENCHMARK_RUNS}
@@ -53,6 +54,7 @@ METHOD_RUN_FILTERS = {
 def run_details() -> dict[str, dict[str, int]]:
     return {
         run.label: {
+            "regime": run.regime,
             "n_layer": run.n_layer,
             "n_embd": run.n_embd,
             "block_size": run.block_size,

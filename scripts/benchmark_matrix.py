@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import json
+from dataclasses import asdict, dataclass
+
+
+@dataclass(frozen=True)
+class BenchmarkRun:
+    label: str
+    n_layer: int
+    n_embd: int
+    block_size: int
+    n_head: int
+    steps: int
+
+
+BENCHMARK_RUNS: tuple[BenchmarkRun, ...] = (
+    BenchmarkRun("small", n_layer=1, n_embd=64, block_size=128, n_head=4, steps=2000),
+    BenchmarkRun("medium", n_layer=2, n_embd=128, block_size=128, n_head=8, steps=5000),
+    BenchmarkRun("large", n_layer=4, n_embd=256, block_size=256, n_head=8, steps=10000),
+    BenchmarkRun("very-large", n_layer=6, n_embd=384, block_size=512, n_head=12, steps=20000),
+    BenchmarkRun("extra-large", n_layer=8, n_embd=512, block_size=512, n_head=16, steps=30000),
+    BenchmarkRun("names-1k", n_layer=4, n_embd=128, block_size=512, n_head=8, steps=1000),
+    BenchmarkRun("names-5k", n_layer=4, n_embd=128, block_size=512, n_head=8, steps=5000),
+    BenchmarkRun("names-10k", n_layer=4, n_embd=128, block_size=512, n_head=8, steps=10000),
+    BenchmarkRun("names-20k", n_layer=4, n_embd=128, block_size=512, n_head=8, steps=20000),
+    BenchmarkRun("names-30k", n_layer=4, n_embd=128, block_size=512, n_head=8, steps=30000),
+    BenchmarkRun("model-small-5k", n_layer=1, n_embd=64, block_size=512, n_head=4, steps=5000),
+    BenchmarkRun("model-medium-5k", n_layer=2, n_embd=128, block_size=512, n_head=8, steps=5000),
+    BenchmarkRun("model-large-5k", n_layer=4, n_embd=256, block_size=512, n_head=8, steps=5000),
+    BenchmarkRun("model-very-large-5k", n_layer=6, n_embd=384, block_size=512, n_head=12, steps=5000),
+    BenchmarkRun("model-extra-large-5k", n_layer=8, n_embd=512, block_size=512, n_head=16, steps=5000),
+)
+
+BENCHMARK_PRESETS = {
+    run.label: {
+        "n_layer": run.n_layer,
+        "n_embd": run.n_embd,
+        "block_size": run.block_size,
+        "n_head": run.n_head,
+        "steps": run.steps,
+    }
+    for run in BENCHMARK_RUNS
+}
+
+
+def main() -> int:
+    print(json.dumps([asdict(run) for run in BENCHMARK_RUNS], indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

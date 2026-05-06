@@ -1,0 +1,8 @@
+\section{Evaluation Strategy}
+
+In this section, we compare a serial C++ baseline, unbatched and batched PyTorch baselines, and our custom parallel CUDA implementation to analyze forward-pass runtime across configurations. We evaluate these methods under three scaling regimes: (i) fixed model size with increasing number of names processed, (ii) fixed number of names with increasing model size, and (iii) scaling both simultaneously.
+
+We do not directly compare performance between our CUDA implementation and \textit{microgpt}, as the pure Python implementation is prohibitively slow (our CUDA implementation is over 10{,}000$\times$ faster on a medium benchmark). However, we use \textit{microgpt} to validate correctness by comparing logits from a single-sequence forward pass against those produced by the original implementation. 
+
+For analyzing results, we will abbreviate methods as UT = unbatched\_torch, BT = batched\_torch, SC = serial\_cpp, and PC = parallel\_cpp. We abbreviate presets as S, M, L, VL, and XL for the standard size sweep, and MS5, MM5, ML5, MVL5, and MXL5 for the 5k-step model sweep.
+

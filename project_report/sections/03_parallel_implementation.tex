@@ -1,0 +1,89 @@
+\section{Parallel Implementation}
+
+Based on the serial workload analysis, our parallelization strategy focuses on exposing more independent work to the GPU. The original \textit{microgpt} structure processes one name at a time and then one token at a time within that name. 
+This creates very little parallel work per operation, especially because the names are short.
+
+While this CPU-side analysis identifies the dominant computational patterns, it does not capture GPU-specific bottlenecks such as memory access and kernel efficiency. To guide implementation decisions at the GPU level, we additionally performed a bottleneck analysis using nvprof on an initial CUDA implementation (see \strongsecref{sec:bottleneck}). The impact of the resulting design choices is evaluated through an ablation study in \strongsecref{sec:bottleneck}.
+
+The nvprof analysis directly informed three key optimizations: introducing batching, implementing tiled matrix multiplication, switching from double to float precision. To increase available parallelism, we batch multiple names together so each kernel operates over many sequences and token positions at once, as shown in \strongalgref{alg:batched}. 
+We denote the batch size as $B = |\mathcal{B}|$ and represent each batch as a tensor of shape $(|\mathcal{B}|, T, d)$. To reduce CUDA kernel complexity, we preprocess the names into batches where all sequences in a batch have the same length.
+\begin{algorithm}[H]
+\caption{High-Level Batched Forward Pass}
+\label{alg:batched}
+\begin{algorithmic}
+\State $\text{loss} \gets 0$
+\State $\text{batches} \gets \text{CreateBatches}(\mathcal{D})$
+
+\For{each batch $\mathcal{B} \in \text{batches}$}
+    \State $X \gets \text{TokenEmbedding}(\mathcal{B}) + \text{PositionalEmbedding}(0{:}T-1)$
+    \State $X \gets \text{RMSNorm}(X)$
+
+    \For{$\ell = 1$ to $L$}
+        \State \textcolor{attncolor}{$X \gets X + \text{Attention}(\text{RMSNorm}(X))$} \textcolor{attncolor}{\Comment{independent per sequence}}
+        \State \textcolor{mlpcolor}{$X \gets X + \text{MLP}(\text{RMSNorm}(X))$} 
+    \EndFor
+
+    \State $Y \gets \text{Linear}(X)$
+    \State $\text{loss} \gets \text{loss} + \text{CrossEntropy}(Y, \text{Targets}(\mathcal{B}))$
+\EndFor
+
+\State $\text{loss} \gets \text{loss} / \text{total\_tokens}$
+\end{algorithmic}
+\end{algorithm}
+
+
+
+Furthermore, our strategy focuses on exposing parallelism at the level of individual tensor elements, rather than at the level of tokens or sequences. This allows each CUDA kernel to operate over $|B| \cdot T \cdot d$ elements simultaneously, significantly increasing available work per launch compared to the serial implementation. 
+
+We achieve this by decomposing the forward pass into a sequence of CUDA kernels, each operating at a finer granularity over the batched tensor. Rather than treating attention and MLP as monolithic operations, we explicitly map each sub-operation (RMSNorm, linear projections, attention, and residual additions) to separate GPU kernels. This decomposition is shown in \strongalgref{alg:layer}, where each step corresponds directly to a kernel launch in our implementation. Since each operation is implemented as its own kernel, we were able to reduce the granularity of the linear matrix multiplication from per-token to per-output-element, and further optimize it using tiling (as motivated by our GPU bottleneck analysis).
+\begin{algorithm}[H]
+\caption{Layer-by-Layer GPU Forward Pass}
+\label{alg:layer}
+\begin{algorithmic}
+\For{$\ell = 1$ to $L$}
+
+    \State \textcolor{attncolor}{$X_{\text{norm}} \gets \text{RMSNorm}(X)$} \textcolor{attncolor}{\Comment{\textbf{Attention Block}}}
+    \State \textcolor{attncolor}{$Q \gets \text{Linear}(X_{\text{norm}}, W_Q^{(\ell)})$}
+    \State \textcolor{attncolor}{$K^{(\ell)} \gets \text{Linear}(X_{\text{norm}}, W_K^{(\ell)})$}
+    \State \textcolor{attncolor}{$V^{(\ell)} \gets \text{Linear}(X_{\text{norm}}, W_V^{(\ell)})$}
+    \State \textcolor{attncolor}{$A \gets \text{SelfAttention}(Q, K^{(\ell)}, V^{(\ell)})$}
+    \State \textcolor{attncolor}{$A_{\text{proj}} \gets \text{Linear}(A, W_O^{(\ell)})$}
+    \State \textcolor{attncolor}{$X_{\text{mid}} \gets X + A_{\text{proj}}$}
+
+    \State \textcolor{mlpcolor}{$X_{\text{norm2}} \gets \text{RMSNorm}(X_{\text{mid}})$} \textcolor{mlpcolor}{\Comment{\textbf{MLP Block}}}
+    \State \textcolor{mlpcolor}{$H \gets \text{Linear}(X_{\text{norm2}}, W_1^{(\ell)})$}
+    \State \textcolor{mlpcolor}{$H \gets \text{ReLU}(H)$}
+    \State \textcolor{mlpcolor}{$H_{\text{proj}} \gets \text{Linear}(H, W_2^{(\ell)})$}
+    \State \textcolor{mlpcolor}{$X \gets X_{\text{mid}} + H_{\text{proj}}$}
+
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+Each operation in \strongalgref{alg:layer} is implemented as a dedicated CUDA kernel, as summarized in \strongtabref{tab:kernels}.
+
+
+\begin{table*}[t]
+\centering
+\begin{tabular}{l l l}
+\toprule
+\textbf{Operation} & \textbf{Thread Granularity} & \textbf{Description} \\
+\midrule
+Embedding + Positional & element $(B,T,d)$ & each thread loads one embedding value \\
+RMSNorm & token $(B, T)$ & each thread normalizes one token by looping over its $d$ values  \\
+SelfAttention & element $(B,T,d)$ & one thread computes one weighted scalar within its attn head \\
+Linear (Q, K, V, MLP) & element $(T,\text{out\_dim})$ & tiled matix mul, one thread owns one output cell \\
+ReLU & element $(B,T,d)$ & independent element-wise activation \\
+Vector Add & element $(B,T,d)$ & independent element-wise vector addition \\
+CrossEntropy & single thread & one thread loops over all $(B,T,\text{vocab})$ to compute cross-entropy \\
+\bottomrule
+\end{tabular}
+\caption{Kernel decomposition with thread granularity and execution details.}
+\label{tab:kernels}
+\end{table*}
+
+From a systems perspective, the full model is transferred to the GPU once at initialization, while a reusable workspace is allocated once per batch. This avoids repeated host-device transfers and ensures that all intermediate activations remain resident on the GPU throughout the forward pass.
+
+Lastly, the original \textit{microgpt} implementation in Python uses FP64 precision by default, by simply changing this in our CUDA version to use floats (fp32) instead, we were able to speed up all of our compute intensive operations.
+
+With this strategy in place, we will next evaluate how effectively the batched GPU implementation reduces wall-clock time compared to serial and PyTorch baselines. 

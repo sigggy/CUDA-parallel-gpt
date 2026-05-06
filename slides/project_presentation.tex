@@ -1,0 +1,287 @@
+\documentclass[aspectratio=169]{beamer}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{ragged2e}
+\usepackage{listings}
+\usepackage{tabularx}
+
+\usetheme{Pittsburgh}
+\usecolortheme{default}
+\setbeamertemplate{headline}{\vspace{0.4cm}}
+\setbeamertemplate{frametitle}{
+  \begin{beamercolorbox}[wd=\paperwidth,leftskip=0.5cm,rightskip=0.3cm]{frametitle}
+    \usebeamerfont{frametitle}\insertframetitle
+  \end{beamercolorbox}
+  \vspace{0.15cm}
+}
+\setbeamertemplate{navigation symbols}{}
+\definecolor{SNBlue}{HTML}{2A4F7A}
+\definecolor{SNGold}{HTML}{C69C3F}
+\definecolor{SNGray}{HTML}{4F5D6B}
+\definecolor{SNLight}{HTML}{F4F6F8}
+\definecolor{SNAccent}{HTML}{B54A4A}
+
+\setbeamercolor{palette primary}{bg=SNBlue,fg=white}
+\setbeamercolor{palette secondary}{bg=SNGray,fg=white}
+\setbeamercolor{palette tertiary}{bg=SNBlue,fg=white}
+\setbeamercolor{palette quaternary}{bg=SNGray,fg=white}
+\setbeamercolor{background canvas}{bg=white}
+\setbeamercolor{normal text}{fg=black,bg=white}
+\setbeamercolor{structure}{fg=SNBlue}
+\setbeamercolor{title}{fg=SNBlue}
+\setbeamercolor{frametitle}{fg=SNBlue,bg=white}
+\setbeamercolor{block title}{bg=SNBlue,fg=white}
+\setbeamercolor{block body}{bg=SNLight,fg=black}
+\setbeamercolor{alerted text}{fg=SNAccent}
+\setbeamercolor{footline}{fg=SNGray,bg=white}
+\setbeamerfont{title}{series=\bfseries,size=\Large}
+\setbeamerfont{frametitle}{series=\bfseries}
+\setbeamerfont{footline}{size=\scriptsize}
+
+\setbeamertemplate{footline}{%
+    \leavevmode%
+    \hbox to \paperwidth{%
+        \hfill%
+        \usebeamerfont{footline}%
+        \usebeamercolor[fg]{footline}%
+        \insertsectionhead%
+        \hspace{0.5cm}%
+    }%
+    \vspace{0.2cm}%
+}
+
+\graphicspath{{../project_report/figures/}}
+
+\pdfstringdefDisableCommands{%
+    \def\translate#1{#1}%
+}
+
+\newcommand{\takeaway}[1]{%
+    {\footnotesize\color{SNAccent}\textbf{Key point.} #1}
+}
+
+\lstdefinelanguage{MinGPTPseudo}{%
+    sensitive=true,
+    alsoletter={_},
+    morekeywords={for,in},
+    morekeywords=[2]{calculate_embedding,calculate_embeddings,calculate_attention,calculate_attention_scores,calculate_next_hidden_state,calc_loss,sum_loss, embedding, mlp, attention},
+    morekeywords=[3]{name_list,name,token,layer,layers,tokens}
+}
+
+\lstdefinestyle{pseudocode}{%
+    language=MinGPTPseudo,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\bfseries\color{SNBlue},
+    keywordstyle=[2]\bfseries\color{SNAccent},
+    keywordstyle=[3]\color{SNGray},
+    numbers=none,
+    backgroundcolor=\color{white},
+    columns=fullflexible,
+    keepspaces=true,
+    breaklines=true,
+    showstringspaces=false,
+    frame=none,
+    xleftmargin=0.4em,
+    aboveskip=0.12cm,
+    belowskip=0.05cm
+}
+\lstset{style=pseudocode}
+
+
+\newcommand{\datarow}[4]{%
+    \begin{tabular}[t]{@{}l@{}}
+        Names: #1 \\
+        Layers: #2 \\
+        Embeddings: #3\\
+        Attn. Heads: #4
+
+    \end{tabular}
+}
+
+\newcommand{\sectiontransition}[2]{%
+    \begin{frame}[plain]
+        \vfill
+        \begin{center}
+            {\fontsize{26}{30}\selectfont\color{SNBlue}\textbf{#1}\par}
+        \end{center}
+        \vfill
+    \end{frame}
+}
+
+\title{Parallelizing GPT-2 -``It works on my GPU''}
+\subtitle{CSCI 563}
+\author{Siggy Sigler, Sam Abderholden, Dawson Matthews}
+\institute{Colorado School of Mines}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\section{Introduction}
+\begin{frame}{Introduction}
+    \begin{itemize}
+        \item We focus on the GPT-2 transformer architecture proposed in \textit{Language Models are Unsupervised Multitask Learners}
+        \begin{itemize}
+            \item decoder only, each layer is self-attention + MLP 
+            \item causal self attention, only attend to the previous tokens in a sequence
+            \item autoregressive, $p(x_t \mid x_1, \dots, x_{t-1})$
+        \end{itemize}
+        \item \textit{microgpt} is a 200 line, dependency free, Python implementation of GPT-2 created by Andrej Karpathy
+        \begin{itemize}
+            \item trained on a corpus names in order to produce new names at inference time 
+            \item follows a similar architecture as GPT-2 with far less parameters (4,192 vs 1.6 billion)
+            \item \textit{microgpt} uses RMSNorm and ReLU instead of LayerNorm and GELU used in GPT-2 
+        \end{itemize}
+        \item We create a C++ serial version matching \textit{microgpt}, in order to provide a better comparison for our parallel version
+        \item Parallelizing ONLY the forward pass of MicroGPT
+    \end{itemize}
+\end{frame}
+
+\section{Serial}
+\begin{frame}[fragile]{Serial Implementation}
+    \vspace{0.1cm}
+    {\large\texttt{name\_list: [[BOS, E, L, L, A, BOS], [name\_B], [name\_C]]}\par}
+    \vspace{0.25cm}
+    {\large\texttt{BOS = Beginning of Sequence}\par}
+
+    \vspace{0.35cm}
+    \begin{columns}[T,onlytextwidth]
+        \begin{column}{0.54\textwidth}
+            \textbf{Serial}
+\begin{lstlisting}[basicstyle=\ttfamily\large]
+for name in name_list:
+  for token in name:
+    embedding(token)
+    for layer in layers:
+      attention(token)
+      mlp(token)
+    calc_loss(token)
+sum_loss(tokens)
+\end{lstlisting}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+
+\begin{frame}{Serial Analysis}
+    \textbf{Big-O: } \\
+    \begin{itemize}
+        \item T = sequence length, E = embedding size, L = layer, N = names
+        \item $O(N \cdot L \cdot (C_{\text{attn}} + C_{\text{mlp}}))$ \\ 
+        \item $O(C_{\text{attn}})$ $ = T^2 \cdot E$ \\
+        \item $O(C_{\text{mlp}})$ $ = T \cdot E^{2}$\\ 
+        \item Since names are mostly constant size it becomes $\approx O(N \cdot L \cdot E^2)$
+    \end{itemize}
+
+    \vspace{0.1cm}
+    \large
+    \textbf{Memory vs CPU Bound: }
+    \begin{itemize}
+        \item Total Time: 6.41 s, CPU Time: 6.19
+        \item CPU utilization $\approx \frac{6.19}{6.41} \approx 96.6\% \Rightarrow$ CPU-bound
+    \end{itemize}
+    
+    \vspace{0.1cm}
+    \textbf{Static Analysis:}
+    \begin{itemize}
+        \item \textbf{99.4\%} of work spent doing matrix mult, (0.4\% for rmnsnorm, SM, emb)
+        \item \textbf{71.1\%} for MLP \textbf{28.3\%} for ATTN  
+        \item By Amdahl’s Law, with $p = 0.998$, the theoretical maximum speedup is $\frac{1}{1 - p} \approx 500\times$
+    \end{itemize}
+\end{frame}
+
+\section{Parallel Strategy}
+\begin{frame}[fragile]{Serial vs. Parallel Implementation}
+    \vspace{0.05cm}
+    {\large\texttt{name\_list: [[BOS, E, L, L, A, BOS], [name\_B], [name\_C]]}\par}
+    \vspace{0.2cm}
+    {\large\texttt{BOS = Beginning of Sequence}\par}
+
+    \vspace{0.3cm}
+    \begin{columns}[T,onlytextwidth]
+
+        % -------- SERIAL --------
+        \begin{column}{0.49\textwidth}
+        \textbf{Serial} 
+\begin{lstlisting}
+for name in name_list:
+    for token in name:
+        embedding(token)
+        for layer in layers:
+            attention(token)
+            mlp(token)
+        calc_loss(token)
+sum_loss(tokens)
+\end{lstlisting}
+        \end{column}
+
+        % -------- PARALLEL --------
+        \begin{column}{0.49\textwidth}
+        \textbf{Parallel (per batch)}
+\begin{lstlisting}
+calculate_embeddings(name_list)
+
+for layer in layers:
+    calculate_attention_scores(name_list)
+    calculate_next_hidden_state(name_list)
+
+calc_loss(name_list) 
+\end{lstlisting}
+        \end{column}
+
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Parallelization Strategy}
+    \vspace{0.2cm}
+    \begin{itemize}
+        \setlength\itemsep{0.18cm}
+        \item \textbf{Batching}
+            \begin{itemize}
+                \item For each sequence launch a transformer $\rightarrow$ run transformer on all sequences at once
+            \end{itemize}
+        \item Store all of our information in a flattened array (B, T, d)
+            \begin{itemize}
+                \item Allows assignment of work easily by batch to threads
+            \end{itemize}
+        \item Store a ``workspace'' on the GPU that holds weights, hidden states, etc.
+        \item Large portions of the forward pass are parallelizable
+            \begin{itemize}
+                \item \textbf{Embedding calculations}
+                \item \textbf{RMS normalization and linear calculations}
+                \item \textbf{Attention}
+            \end{itemize}
+        \item \textbf{Layers must be performed sequentially}
+    \end{itemize}
+\end{frame}
+
+\section{Evaluation}
+\begin{frame}{Performance Evaluation (Forward Pass)}
+    \vspace{0.05cm}
+    \small
+    \renewcommand{\arraystretch}{1.25}
+    \setlength{\tabcolsep}{7pt}
+    \begin{tabularx}{\textwidth}{|>{\RaggedRight\arraybackslash}p{0.23\textwidth}|>{\RaggedRight\arraybackslash}X|>{\RaggedRight\arraybackslash}X|>{\RaggedRight\arraybackslash}X|}
+        \hline
+        & \textbf{PyTorch Baseline} & \textbf{C++ Serial} & \textbf{CUDA Parallel} \\
+        \hline
+        \datarow{2500}{4}{256}{8} & 5.2244 seconds (8.919x) & 46.5978 seconds & 0.1949 seconds (239.0856x)\\
+        \hline
+        \datarow{5000}{6}{384}{12} & 14.5409 seconds (22.589x) & 328.4692 seconds & 0.7374 seconds (445.44x)\\
+        \hline
+        \datarow{10,000}{8}{512}{16} & 38.6489 seconds (40.946x) & 1582.5279 seconds & 2.9164 seconds (542.63x)\\
+        \hline
+    \end{tabularx}
+\end{frame}
+
+\end{document}

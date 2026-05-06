@@ -1,0 +1,63 @@
+\section{Serial Implementation and Analysis}
+
+\subsection*{Problem Background}
+
+In this project, we implement an optimized CUDA version of the forward pass of Andrej Karpathy's \textit{microgpt} \cite{karpathyMicrogpt2026}. \textit{Microgpt} is a minimal, dependency-free Python implementation of a GPT-style model. It is based on the GPT-2 architecture \cite{radfordLanguageModelsAre2019}, with a few changes made for simplicity. Both GPT-2 and Karpathy's \textit{microgpt} implement:
+\begin{itemize}[noitemsep, topsep=0pt]
+  \item Decoder-only Transformer architecture
+  \item Token + positional embeddings
+  \item Stacked Transformer blocks
+  \item Causal (masked) multi-head self-attention
+  \item Residual connections around attention and MLP sublayers
+  \item Feedforward MLP with expansion and projection
+  \item Autoregressive next-token prediction
+\end{itemize}
+Since \textit{microgpt} was intended to showcase the GPT-2 architecture in a single unoptimized Python file, the proposed model has only 4,192 parameters compared to GPT-2's 1.6 billion parameters. In addition to the reduced model size, \textit{microgpt} introduces several simplifications, including the use of RMSNorm instead of LayerNorm, removal of bias terms, and ReLU in place of GELU \cite{karpathyMicrogpt2026}. 
+
+\noindent In order to keep the scope of our implementation to 10 hours, we focus only on speeding up the forward pass of \textit{microgpt}. Since we believed that comparing a CUDA C++ version to a Python version would introduce speedups due to both our parallelization choices and language differences (C++ vs Python), we first reimplemented \textit{microgpt} in C++, preserving the following:
+\begin{itemize}[noitemsep, topsep=0pt]  \item Identical layer structure
+  \item Same ordering of operations (norm $\rightarrow$ attention $\rightarrow$ residual $\rightarrow$ norm $\rightarrow$ MLP $\rightarrow$ residual)
+  \item Same KV caching mechanism
+  \item Same attention computation (scaled dot-product + softmax)
+  \item Same MLP structure (\texttt{fc1} $\rightarrow$ activation $\rightarrow$ \texttt{fc2})
+\end{itemize}
+
+Our C++ version is nearly identical, with differences limited to implementation details such as replacing dynamic Python data structures with pre-allocated caches, removing autograd in favor of raw floating-point computation, and expressing all operations as explicit loop-based computations over contiguous memory.
+
+\subsection*{C++ Serial Baseline}
+Our implementation follows the training setup used in \textit{microgpt}, which operates on a character-level dataset consisting of a set of names $\mathcal{D} = \{s^{(1)}, s^{(2)}, \dots, s^{(N)}\}$. Each name $s^{(k)} \in \mathcal{D}$ is treated as a sequence of tokens, $s^{(k)} = [t_1, t_2, \dots, t_T]$, where $T$ denotes the sequence length. The model is trained autoregressively to predict the next token given all previous tokens. Our C++ implementation preserves this setup exactly, performing the same forward-pass computation and next-token prediction task. The prompt used to generate the 
+C++ baseline can be found under \strongappref{appendix:serial-prompt}
+ 
+Given a tokenized sequence (i.e., a single name) $[t_1, t_2, \dots, t_T]$, the model computes a sequence of logits $[y_1, y_2, \dots, y_{T-1}]$, where each $y_i$ represents the model's prediction of token $t_{i+1}$ conditioned on the prefix $[t_1, \dots, t_i]$. In the baseline implementation, this computation is performed sequentially, iterating over the dataset one name at a time and, within each name, one token at a time, with each position attending over all previous tokens in the sequence.  A high level pseudocode of our serial implentation is shown under \strongalgref{alg:forward-pass}.
+
+We denote the embedding dimension as $d$, the number of Transformer layers as $L$, and the number of attention heads as $H$. For each token position $i$, the model produces a hidden representation $x_i \in \mathbb{R}^d$, which is transformed through attention and MLP operations across all layers. 
+
+The computational cost of the forward pass over $N$ sequences is $O\!\left(N \cdot L \cdot (C_{\text{attn}} + C_{\text{mlp}})\right)$, where $C_{\text{attn}} = O(T^2 \cdot d)$ and $C_{\text{mlp}} = O(T \cdot d^2)$. Since the names have approximately constant sequence lengths, we can simplify this to $O(N \cdot L \cdot d^2)$. 
+
+
+\begin{algorithm}[H]
+\caption{High-Level Forward Pass}
+\label{alg:forward-pass}
+\begin{algorithmic}
+\State $\text{loss} \gets 0$
+\For{each sequence $s^{(k)} \in \mathcal{D}$}
+    \For{$i = 1$ to $T-1$}
+        \State $x_i \gets \text{TokenEmbedding}(t_i) + \text{PositionalEmbedding}(i)$
+        \State $x_i \gets \text{RMSNorm}(x_i)$
+
+        \For{$\ell = 1$ to $L$}
+            \State $x_i \gets x_i + \text{Attention}(\text{RMSNorm}(x_i), \{k_j, v_j\}_{j \le i})$
+            \State $x_i \gets x_i + \text{MLP}(\text{RMSNorm}(x_i))$
+        \EndFor
+
+        \State $y_i \gets \text{Linear}(x_i)$
+        \State $\text{loss} \gets \text{loss} - \log(\text{Softmax}(y_i)[t_{i+1}])$
+    \EndFor
+\EndFor
+\State $\text{loss} \gets \text{loss} / \text{total\_tokens}$
+\end{algorithmic}
+\end{algorithm}
+
+Using the \textit{perf time} command we were able to get high level timing characteristics of the C++ baseline program, especially how much time our C++ baseline was performing OS overhead versus useful compute work. With nearly zero system time (0.008s out of 2.74s total) and only 269 context switches, the program runs almost entirely in userspace with negligible OS overhead. An IPC of 3.06 with 0.999 CPUs utilized confirms the single core is saturated with compute for the full duration. Next, we used \textit{perf record} in order to perform a call stack analysis of where the program was spending its CPU time. 
+We found that \textbf{99.4\%} of runtime is spent in linear matrix multiplications, with \textbf{70.1\%} occurring in the MLP and \textbf{28.3\%} in attention (note the program spends around 0.4\% performing rmnsnorm, Softmax, and embedding operations). While attention is often considered the bottleneck in Transformer models, this aligns with our earlier complexity analysis, as the approximately constant sequence length causes the $d^2$ term to dominate, making the MLP the primary contributor to runtime.
+Treating the matrix multiplications together with the remaining targeted primitives as parallelizable gives $p \approx 0.998$, so Amdahl's Law places the theoretical end-to-end speedup ceiling at $\frac{1}{1-p} \approx 500\times$. If the serial baseline runs for longer, closer to an hour, we expect that the parallelizable region could increase beyond $99.8\%$, leading to even larger speedups.

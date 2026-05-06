@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import argparse
 import struct
+import time
 from pathlib import Path
 
-from kernel import ModelConfig, flatten_param_values, init_model, run_forward_backward
+from kernel import ModelConfig, flatten_param_values, init_model, run_forward
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -18,11 +19,6 @@ DEFAULT_FIXTURE_DIR = REPO_ROOT / "training_data" / "fixtures" / "small_case"
 DEFAULT_SAMPLE_NAME = "anna"
 DEFAULT_SEED = 42
 VALIDATION_EPSILON = 1e-4
-BENCHMARK_PRESETS = {
-    "small": {"config": ModelConfig(n_layer=1, n_embd=64, block_size=64, n_head=4), "steps": 200},
-    "medium": {"config": ModelConfig(n_layer=2, n_embd=128, block_size=64, n_head=8), "steps": 200},
-    "large": {"config": ModelConfig(n_layer=4, n_embd=256, block_size=128, n_head=8), "steps": 100},
-}
 
 
 def load_docs(dataset_path: Path):
@@ -111,23 +107,32 @@ def compare_arrays(label: str, actual, expected, epsilon: float):
         raise ValueError(f"{label} exceeded validation epsilon")
 
 
+def require_positive_int(value: int | None, name: str) -> int:
+    if value is None or value < 1:
+        raise ValueError(f"{name} must be at least 1")
+    return value
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="serial Python benchmark scaffold")
     parser.add_argument("--mode", choices=["dump-fixtures", "validate", "benchmark"], required=True)
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
-    parser.add_argument("--fixture-dir", type=Path, default=DEFAULT_FIXTURE_DIR)
     parser.add_argument("--sample-name", default=DEFAULT_SAMPLE_NAME)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
-    parser.add_argument("--preset", choices=sorted(BENCHMARK_PRESETS), default="small")
     parser.add_argument("--num-steps", type=int, default=None)
+    parser.add_argument("--label", default="custom")
+    parser.add_argument("--n-layer", type=int, default=None)
+    parser.add_argument("--n-embd", type=int, default=None)
+    parser.add_argument("--block-size", type=int, default=None)
+    parser.add_argument("--n-head", type=int, default=None)
     return parser.parse_args()
 
 
 def dump_fixtures(dataset_path: Path, fixture_dir: Path, sample_name: str, seed: int):
     uchars, tokens = load_tokens(dataset_path, sample_name)
     config = ModelConfig()
-    state_dict, params = init_model(config, len(uchars) + 1, seed)
-    result = run_forward_backward(tokens, state_dict, params, config)
+    state_dict, _ = init_model(config, len(uchars) + 1, seed)
+    result = run_forward(tokens, state_dict, config)
     fixture_dir.mkdir(parents=True, exist_ok=True)
 
     manifest_lines = [
@@ -144,14 +149,12 @@ def dump_fixtures(dataset_path: Path, fixture_dir: Path, sample_name: str, seed:
         "weights_init_file=weights_init.bin",
         "expected_logits_file=expected_logits.bin",
         "expected_loss_file=expected_loss.bin",
-        "expected_grads_file=expected_grads.bin",
     ]
 
     (fixture_dir / "manifest.txt").write_text("\n".join(manifest_lines) + "\n")
     write_f32_file(fixture_dir / "weights_init.bin", flatten_param_values(state_dict, config))
     write_f32_file(fixture_dir / "expected_logits.bin", [value for row in result["logits"] for value in row])
     write_f32_file(fixture_dir / "expected_loss.bin", [result["loss"]])
-    write_f32_file(fixture_dir / "expected_grads.bin", result["grads"])
     print(f"wrote fixture bundle to {fixture_dir}")
 
 
@@ -167,43 +170,69 @@ def validate_fixture(fixture_dir: Path, seed: int):
     tokens = parse_int_list(manifest["token_ids"])
     epsilon = float(manifest["validation_epsilon"])
 
-    state_dict, params = init_model(config, vocab_size, seed)
+    state_dict, _ = init_model(config, vocab_size, seed)
     load_model_from_f32(state_dict, config, read_f32_file(fixture_dir / manifest["weights_init_file"]))
-    result = run_forward_backward(tokens, state_dict, params, config)
+    result = run_forward(tokens, state_dict, config)
 
     compare_arrays("logits", [value for row in result["logits"] for value in row], read_f32_file(fixture_dir / manifest["expected_logits_file"]), epsilon)
     compare_arrays("loss", [result["loss"]], read_f32_file(fixture_dir / manifest["expected_loss_file"]), epsilon)
-    compare_arrays("grads", result["grads"], read_f32_file(fixture_dir / manifest["expected_grads_file"]), epsilon)
     print("validation=pass")
 
 
-def run_benchmark(dataset_path: Path, sample_name: str, seed: int, preset_name: str, num_steps: int | None):
-    uchars, tokens = load_tokens(dataset_path, sample_name)
-    preset = BENCHMARK_PRESETS[preset_name]
-    config = preset["config"]
-    steps = num_steps if num_steps is not None else preset["steps"]
-    state_dict, params = init_model(config, len(uchars) + 1, seed)
+def run_benchmark(
+    dataset_path: Path,
+    seed: int,
+    config: ModelConfig,
+    num_steps: int,
+    label: str,
+):
+    benchmark_start = time.perf_counter()
+    docs = load_docs(dataset_path)
+    if not docs:
+        raise ValueError(f"dataset is empty: {dataset_path}")
+    uchars, vocab, bos = build_vocab(docs)
+    requested_steps = num_steps
+    steps = min(num_steps, len(docs))
+    state_dict, _ = init_model(config, len(uchars) + 1, seed)
     last_result = None
-    for _ in range(steps):
-        last_result = run_forward_backward(tokens, state_dict, params, config)
+    last_doc = ""
+    forward_pass_seconds_cumulative = 0.0
+    for step_idx in range(steps):
+        last_doc = docs[step_idx]
+        tokens = encode_doc(last_doc, vocab, bos)
+        forward_start = time.perf_counter()
+        last_result = run_forward(tokens, state_dict, config)
+        forward_pass_seconds_cumulative += time.perf_counter() - forward_start
+    total_program_seconds = time.perf_counter() - benchmark_start
     print(
         "mode=benchmark "
-        f"preset={preset_name} "
+        f"preset={label} "
+        f"requested_steps={requested_steps} "
         f"steps={steps} "
-        f"sample_name={sample_name} "
-        f"loss={last_result['loss']:.6f}"
+        f"last_doc={last_doc} "
+        f"loss={last_result['loss']:.6f} "
+        f"forward_pass_seconds_cumulative={forward_pass_seconds_cumulative:.8f} "
+        f"total_program_seconds={total_program_seconds:.8f}"
     )
 
 
 def main():
     args = parse_args()
     if args.mode == "dump-fixtures":
-        dump_fixtures(args.dataset, args.fixture_dir, args.sample_name, args.seed)
+        dump_fixtures(args.dataset, DEFAULT_FIXTURE_DIR, args.sample_name, args.seed)
         return
     if args.mode == "validate":
-        validate_fixture(args.fixture_dir, args.seed)
+        validate_fixture(DEFAULT_FIXTURE_DIR, args.seed)
         return
-    run_benchmark(args.dataset, args.sample_name, args.seed, args.preset, args.num_steps)
+    n_layer = require_positive_int(args.n_layer, "--n-layer")
+    n_embd = require_positive_int(args.n_embd, "--n-embd")
+    block_size = require_positive_int(args.block_size, "--block-size")
+    n_head = require_positive_int(args.n_head, "--n-head")
+    num_steps = require_positive_int(args.num_steps, "--num-steps")
+    if n_embd % n_head != 0:
+        raise ValueError("--n-embd must be divisible by --n-head")
+    config = ModelConfig(n_layer=n_layer, n_embd=n_embd, block_size=block_size, n_head=n_head)
+    run_benchmark(args.dataset, args.seed, config, num_steps, args.label)
 
 
 if __name__ == "__main__":

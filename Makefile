@@ -1,16 +1,16 @@
 PYTHON ?= python3
 CXX ?= c++
-CXXFLAGS ?= -std=c++17 -O3 -Wall -Wextra -pedantic
+CXXFLAGS ?= -std=c++17 -O3 -Wall -Wextra 
 
 # Profiling flags
-PROFILE_CXXFLAGS := -std=c++17 -O2 -g -fno-omit-frame-pointer -Wall -Wextra -pedantic
+PROFILE_CXXFLAGS := -std=c++17 -O2 -g -fno-omit-frame-pointer -Wall -Wextra 
 
 # macOS Instruments
 #INSTRUMENTS_CXXFLAGS := -std=c++17 -O2 -g -fno-omit-frame-pointer -Wall -Wextra -pedantic
 
 
 NVCC ?= nvcc
-NVCCFLAGS ?= -std=c++14 -O3 -Xcompiler -Wall,-Wextra,-pedantic
+NVCCFLAGS ?= -std=c++14 -O3 -Xcompiler -Wall,-Wextra
 
 BUILD_DIR := build
 DATASET := training_data/datasets/names.txt

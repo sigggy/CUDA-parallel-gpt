@@ -11,12 +11,7 @@ The repository includes the full project stack around that comparison: benchmark
 ## Important Project Files
 
 - [Final report (PDF)](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/project_report/report.pdf)
-- [Final report source](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/project_report/report.tex)
 - [Project presentation (PDF)](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/slides/project_presentation.pdf)
-- [Presentation source](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/slides/project_presentation.tex)
-- [Benchmark driver](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/scripts/run_benchmarks.py)
-- [Benchmark preset matrix](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/scripts/benchmark_matrix.py)
-- [Validation fixtures](/Users/jacksigler/Library/CloudStorage/OneDrive-ColoradoSchoolofMines/Mines/Spring_2026/CSCI-563/parrallel-gpt/training_data/fixtures/small_case/manifest.txt)
 
 ## Commands
 

@@ -11,13 +11,17 @@ from pathlib import Path
 
 
 # In-file config only. This script intentionally has no CLI.
-INPUT_JSON = "data/cuda_linear_ablation_results.json"
-OUTPUT_FILE = "report/figures/cuda_ablation_names.png"
+INPUT_JSON = "data/benchmark_results_new2.json"
+OUTPUT_FILE = "report/figures/general_benchmark_names.png"
 
 PRESET_PREFIX = "names-"
 Y_METRIC_KEY = "total_program_seconds"
+MODEL_SHAPE_FILTER = None
+# Optional shape filter for mixed-shape benchmark files.
+# Order: (n_layer, n_embd, block_size, n_head).
+# Leave this as None when the input already contains a single fixed model shape.
 
-TITLE = "CUDA Ablation Across Increasing Name Counts"
+TITLE = "General Benchmark Methods Across Increasing Name Counts"
 SUBTITLE = ""
 X_LABEL = "Number of Names"
 Y_LABEL = "Runtime (seconds)"
@@ -25,38 +29,37 @@ LEGEND_TITLE = "Methods"
 
 METHOD_ORDER = [
     "serial_cpp",
-    "baseline_cuda",
-    "batching_only",
-    "float_only",
-    "tiled_matmul_only",
-    "batching_float_tiled",
+    "unbatched_torch",
+    "batched_torch",
+    "parallel_cpp",
 ]
 
 METHOD_LABELS = {
-    "serial_cpp": "serial_cpp",
-    "baseline_cuda": "baseline_cuda",
-    "batching_only": "batching_only",
-    "float_only": "float_only",
-    "tiled_matmul_only": "tiled_matmul_only",
-    "batching_float_tiled": "batching_float_tiled",
+    "serial_cpp": "SC",
+    "unbatched_torch": "UT",
+    "batched_torch": "BT",
+    "parallel_cpp": "PC",
+}
+
+METHOD_ALIASES = {
+    "serial_cpp": ("serial_cpp",),
+    "unbatched_torch": ("unbatched_torch", "serial_torch"),
+    "batched_torch": ("batched_torch", "parallel_torch"),
+    "parallel_cpp": ("parallel_cpp",),
 }
 
 METHOD_COLORS = {
     "serial_cpp": "#111827",
-    "baseline_cuda": "#b91c1c",
-    "batching_only": "#d97706",
-    "float_only": "#2563eb",
-    "tiled_matmul_only": "#059669",
-    "batching_float_tiled": "#7c3aed",
+    "unbatched_torch": "#2563eb",
+    "batched_torch": "#059669",
+    "parallel_cpp": "#b91c1c",
 }
 
 METHOD_MARKERS = {
     "serial_cpp": "circle",
-    "baseline_cuda": "square",
-    "batching_only": "diamond",
-    "float_only": "triangle_up",
-    "tiled_matmul_only": "triangle_down",
-    "batching_float_tiled": "hexagon",
+    "unbatched_torch": "triangle_up",
+    "batched_torch": "hexagon",
+    "parallel_cpp": "square",
 }
 
 FAIL_IF_MISSING_POINTS = True
@@ -224,7 +227,7 @@ def write_png_from_svg(svg: str, output_path: Path) -> None:
     if converter is None:
         raise RuntimeError("rsvg-convert is required to write PNG output")
 
-    with tempfile.TemporaryDirectory(prefix="cuda-ablation-plot-") as temp_dir:
+    with tempfile.TemporaryDirectory(prefix="general-benchmark-plot-") as temp_dir:
         temp_svg = Path(temp_dir) / "plot.svg"
         temp_svg.write_text(svg)
         completed = subprocess.run(
@@ -249,11 +252,20 @@ def write_png_from_svg(svg: str, output_path: Path) -> None:
             )
 
 
-def build_series(results: dict[str, object]) -> tuple[dict[str, list[tuple[int, float, str]]], dict[str, int], str]:
+def build_method_alias_lookup() -> dict[str, str]:
+    lookup: dict[str, str] = {}
+    for canonical_method, aliases in METHOD_ALIASES.items():
+        for alias in aliases:
+            lookup[alias] = canonical_method
+    return lookup
+
+
+def build_series(results: dict[str, object]) -> tuple[dict[str, list[tuple[int, float, str]]], list[int], str]:
     benchmarks = results.get("benchmarks")
     if not isinstance(benchmarks, list):
         raise RuntimeError("results json is missing a top-level 'benchmarks' list")
 
+    alias_lookup = build_method_alias_lookup()
     series_map = {method: {} for method in METHOD_ORDER}
     model_shapes: set[tuple[int, int, int, int]] = set()
 
@@ -263,9 +275,12 @@ def build_series(results: dict[str, object]) -> tuple[dict[str, list[tuple[int, 
         if entry.get("status") != "pass":
             continue
 
-        method = entry.get("method")
+        raw_method = entry.get("method")
         preset = entry.get("preset")
-        if method not in METHOD_ORDER or not isinstance(preset, str):
+        if not isinstance(raw_method, str) or not isinstance(preset, str):
+            continue
+        method = alias_lookup.get(raw_method)
+        if method not in METHOD_ORDER:
             continue
         if not preset.startswith(PRESET_PREFIX):
             continue
@@ -279,36 +294,54 @@ def build_series(results: dict[str, object]) -> tuple[dict[str, list[tuple[int, 
         if steps is None:
             steps = parsed.get("steps")
         if steps is None:
-            raise RuntimeError(f"missing steps for method={method} preset={preset}")
+            raise RuntimeError(f"missing steps for method={raw_method} preset={preset}")
         x_value = int(steps)
 
         metric_value = parsed.get(Y_METRIC_KEY)
         if metric_value is None:
-            raise RuntimeError(f"missing parsed.{Y_METRIC_KEY} for method={method} preset={preset}")
+            raise RuntimeError(f"missing parsed.{Y_METRIC_KEY} for method={raw_method} preset={preset}")
         y_value = parse_float(metric_value)
 
+        current_shape = (
+            int(preset_details["n_layer"]),
+            int(preset_details["n_embd"]),
+            int(preset_details["block_size"]),
+            int(preset_details["n_head"]),
+        )
+        model_shapes.add(current_shape)
+        if MODEL_SHAPE_FILTER is not None and current_shape != MODEL_SHAPE_FILTER:
+            continue
+
         if x_value in series_map[method]:
-            raise RuntimeError(f"duplicate point for method={method} at steps={x_value}")
+            raise RuntimeError(
+                f"duplicate point for canonical method={method} at steps={x_value}; "
+                f"check for mixed old/new method names in the input json"
+            )
         series_map[method][x_value] = (y_value, preset)
 
-        model_shapes.add(
-            (
-                int(preset_details["n_layer"]),
-                int(preset_details["n_embd"]),
-                int(preset_details["block_size"]),
-                int(preset_details["n_head"]),
+    selected_shapes = set(model_shapes)
+    if MODEL_SHAPE_FILTER is not None:
+        selected_shapes = {shape for shape in model_shapes if shape == MODEL_SHAPE_FILTER}
+        if not selected_shapes:
+            available_shapes = ", ".join(str(shape) for shape in sorted(model_shapes)) or "none"
+            raise RuntimeError(
+                "no names-* rows matched MODEL_SHAPE_FILTER="
+                f"{MODEL_SHAPE_FILTER} in {INPUT_JSON}; available shapes: {available_shapes}"
             )
-        )
 
-    if VERIFY_FIXED_MODEL and len(model_shapes) != 1:
+    if VERIFY_FIXED_MODEL and len(selected_shapes) != 1:
         raise RuntimeError(
             "selected presets do not keep model size fixed; found model shapes: "
-            + ", ".join(str(shape) for shape in sorted(model_shapes))
+            + ", ".join(str(shape) for shape in sorted(selected_shapes))
+            + ". Set MODEL_SHAPE_FILTER to one of those tuples."
         )
 
     x_values = sorted({x_value for points in series_map.values() for x_value in points})
     if not x_values:
-        raise RuntimeError(f"no passing presets found for prefix '{PRESET_PREFIX}' in {INPUT_JSON}")
+        raise RuntimeError(
+            f"no passing presets found for prefix '{PRESET_PREFIX}' in {INPUT_JSON}; "
+            "make sure the input file is from a general benchmark run that includes names-* presets"
+        )
 
     if FAIL_IF_MISSING_POINTS:
         missing: list[str] = []
@@ -331,14 +364,14 @@ def build_series(results: dict[str, object]) -> tuple[dict[str, list[tuple[int, 
     }
 
     subtitle = SUBTITLE
-    if not subtitle and model_shapes:
-        n_layer, n_embd, block_size, n_head = next(iter(model_shapes))
+    if not subtitle and selected_shapes:
+        n_layer, n_embd, block_size, n_head = next(iter(selected_shapes))
         subtitle = (
             f"Fixed model: n_layer={n_layer}, n_embd={n_embd}, "
             f"block_size={block_size}, n_head={n_head}"
         )
 
-    return series, {x_value: x_value for x_value in x_values}, subtitle
+    return series, x_values, subtitle
 
 
 def render_svg(
@@ -509,8 +542,8 @@ def main() -> None:
     output_path = Path(OUTPUT_FILE)
 
     results = load_results(input_path)
-    series, x_value_lookup, subtitle = build_series(results)
-    svg = render_svg(series, sorted(x_value_lookup), subtitle)
+    series, x_values, subtitle = build_series(results)
+    svg = render_svg(series, x_values, subtitle)
 
     if output_path.parent != Path("."):
         output_path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,6 +1,27 @@
 \section{Performance Results with Graphs}
 
-The following sections present performance graphs across the evaluated model presets. We compare PyTorch, serial C++, and our custom parallel CUDA implementation to analyze forward-pass runtime across configurations. For each preset, we include a plot highlighting serial C++ performance as a baseline and the resulting speedup obtained through parallelization.
+In this section, we compare a serial C++ baseline, unbatched and batched PyTorch baselines, and our custom parallel CUDA implementation to analyze forward-pass runtime across configurations. We evaluate these methods under three scaling regimes: (i) fixed model size with increasing number of names processed, (ii) fixed number of names with increasing model size, and (iii) scaling both simultaneously.
+
+We do not directly compare performance between our CUDA implementation and \textit{microgpt}, as the pure Python implementation is prohibitively slow (our CUDA implementation is over 10{,}000$\times$ faster on a medium benchmark). However, we use \textit{microgpt} to validate correctness by comparing logits from a single-sequence forward pass against those produced by the original implementation. 
+
+For analyzing results, we will abbreviate methods as UT = unbatched\_torch, BT = batched\_torch, SC = serial\_cpp, and PC = parallel\_cpp. We abbreviate presets as S, M, L, VL, and XL for the standard size sweep, and MS5, MM5, ML5, MVL5, and MXL5 for the 5k-step model sweep.
+
+We begin by examining the case of a fixed model size with increasing input name counts, shown in Figure \ref{result:1} below. 
+
+Our PC method outperforms all other baselines across every input size benchmarked. For both SC and UT, this result is unsurprising, as PC is more heavily optimized for this specific workload. More notably, PC also outperforms BT, which is a highly optimized and widely used ML framework. This advantage can largely be attributed to Python overhead in BT, including costs associated with object management and data movement between Python and underlying implementations.
+
+However, a closer examination of the results shows that, while PC currently outperforms BT, its runtime increases more rapidly with input size, whereas BT exhibits near-ideal scaling behavior. It is therefore reasonable to expect that as input sizes continue to grow, particularly to those typical of modern ML workloads, PC will eventually lose its performance advantage.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\linewidth]{figures/general_benchmark_names.png}
+    \caption{Results from Input Scaling}
+    \label{result:1}
+\end{figure}
+
+
+Next we will look the results from both our other scaling approaches: holding input size constant while increasing the model size ref, and increasing both the input size and model size ref. The model presets both of these expierments are presents below in table \ref{tab:model_configs} 
+
 
 \begin{table}[H]
 \centering
@@ -8,244 +29,102 @@ The following sections present performance graphs across the evaluated model pre
 \hline
 \textbf{Preset} & \textbf{n\_layer} & \textbf{n\_embd} & \textbf{block\_size} & \textbf{n\_head} & \textbf{steps} \\
 \hline
-small        & 1 & 64  & 128 & 4  & 200   \\
-medium       & 2 & 128 & 128 & 8  & 1000  \\
-large        & 4 & 256 & 256 & 8  & 2500  \\
-very-large   & 6 & 384 & 512 & 12 & 5000  \\
-extra-large  & 8 & 512 & 512 & 16 & 10000 \\
+
+\hline
+S            & 1 & 64  & 128 & 4  & 200   \\
+M            & 2 & 128 & 128 & 8  & 1000  \\
+L            & 4 & 256 & 256 & 8  & 2500  \\
+VL           & 6 & 384 & 512 & 12 & 5000  \\
+XL           & 8 & 512 & 512 & 16 & 10000 \\
+
+\hline
+MS5          & 1 & 64  & 512 & 4  & 5000 \\
+MM5          & 2 & 128 & 512 & 8  & 5000 \\
+ML5          & 4 & 256 & 512 & 8  & 5000 \\
+MVL5         & 6 & 384 & 512 & 12 & 5000 \\
+MXL5         & 8 & 512 & 512 & 16 & 5000 \\
+
 \hline
 \end{tabular}
-\caption{Model and Name Size Configurations}
+\caption{Model Configurations Used in Experiments}
+\label{tab:model_configs}
 \end{table}
 
-\begin{figure}[H]
+
+\begin{table}[h]
 \centering
 
-\begin{subfigure}{0.48\textwidth}
+\begin{minipage}{0.49\textwidth}
 \centering
-\begin{tikzpicture}
-\begin{axis}[
-title={Forward Pass Runtime},
-ylabel={Time (s)},
-ymode=log,
-symbolic x coords={serial\_torch,parallel\_torch,serial\_cpp,parallel\_cpp},
-xtick=data,
-x tick label style={rotate=30,anchor=east},
-legend pos=north west,
-width=\textwidth,
-height=6cm
-]
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Preset} & \textbf{UT} & \textbf{BT} & \textbf{SC} & \textbf{PC} \\
+\midrule
 
-\addplot coordinates {(serial\_torch,0.3464)(parallel\_torch,0.2256)(serial\_cpp,0.0479)(parallel\_cpp,0.0052)};
-\addlegendentry{small}
+S  & \makecell{1.04 \\ $0.06\times$}
+   & \makecell{0.89 \\ $0.07\times$}
+   & \makecell{0.06 \\ $1.00\times$}
+   & \makecell{0.11 \\ $0.58\times$} \\
 
-\addplot coordinates {(serial\_torch,1.3181)(parallel\_torch,0.2311)(serial\_cpp,2.1390)(parallel\_cpp,0.0323)};
-\addlegendentry{medium}
+M  & \makecell{2.17 \\ $0.99\times$}
+   & \makecell{1.05 \\ $2.06\times$}
+   & \makecell{2.16 \\ $1.00\times$}
+   & \makecell{0.15 \\ $14.46\times$} \\
 
-\addplot coordinates {(serial\_torch,5.2244)(parallel\_torch,0.2523)(serial\_cpp,46.5978)(parallel\_cpp,0.1949)};
-\addlegendentry{large}
+L  & \makecell{7.36 \\ $6.33\times$}
+   & \makecell{2.33 \\ $19.98\times$}
+   & \makecell{46.56 \\ $1.00\times$}
+   & \makecell{0.37 \\ $125.21\times$} \\
 
-\addplot coordinates {(serial\_torch,14.5409)(parallel\_torch,0.3575)(serial\_cpp,328.4692)(parallel\_cpp,0.7374)};
-\addlegendentry{very-large}
+VL & \makecell{20.10 \\ $16.29\times$}
+   & \makecell{5.78 \\ $56.69\times$}
+   & \makecell{327.49 \\ $1.00\times$}
+   & \makecell{1.04 \\ $315.81\times$} \\
 
-\addplot coordinates {(serial\_torch,38.6489)(parallel\_torch,0.6767)(serial\_cpp,1582.5279)(parallel\_cpp,2.9164)};
-\addlegendentry{extra-large}
+XL & \makecell{51.34 \\ $30.77\times$}
+   & \makecell{12.51 \\ $126.27\times$}
+   & \makecell{1579.67 \\ $1.00\times$}
+   & \makecell{3.51 \\ $450.23\times$} \\
 
-\end{axis}
-\end{tikzpicture}
-\caption{Forward pass runtime across presets}
-\end{subfigure}
-\hfill
-\begin{subfigure}{0.48\textwidth}
-\centering
-\begin{tikzpicture}
-\begin{axis}[
-title={Speedup vs Serial C++},
-ylabel={Speedup (×)},
-symbolic x coords={small,medium,large,very-large,extra-large},
-xtick=data,
-x tick label style={rotate=30,anchor=east},
-width=\textwidth,
-height=6cm
-]
-
-\addplot coordinates {(small,0.57)(medium,13.65)(large,124.55)(very-large,309.30)(extra-large,449.13)};
-
-\end{axis}
-\end{tikzpicture}
-\caption{Parallel speedup over serial C++}
-\end{subfigure}
-
-\caption{Performance comparison across model size presets}
-\label{fig:presets_combined}
-
-\end{figure}
-
-% ================= NAMES =================
-
-\begin{table}[H]
-\centering
-\begin{tabular}{lccccc}
-\hline
-\textbf{Preset} & \textbf{n\_layer} & \textbf{n\_embd} & \textbf{block\_size} & \textbf{n\_head} & \textbf{steps} \\
-\hline
-names-1k   & 1 & 64  & 512 & 4 & 1000  \\
-names-5k   & 1 & 64  & 512 & 4 & 5000  \\
-names-10k  & 1 & 64  & 512 & 4 & 10000 \\
-names-20k  & 2 & 128 & 512 & 8 & 20000 \\
-names-30k  & 2 & 128 & 512 & 8 & 30000 \\
-\hline
+\bottomrule
 \end{tabular}
-\caption{Name Size Configurations}
-\end{table}
-
-\begin{figure}[H]
+\end{minipage}
+\hspace{0.001\textwidth}  % adjust this
+\begin{minipage}{0.48\textwidth}
 \centering
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Preset} & \textbf{UT} & \textbf{BT} & \textbf{SC} & \textbf{PC} \\
+\midrule
 
-\begin{subfigure}{0.48\textwidth}
-\centering
-\begin{tikzpicture}
-\begin{axis}[
-title={Forward Pass Runtime},
-ylabel={Time (s)},
-ymode=log,
-symbolic x coords={serial\_torch,parallel\_torch,serial\_cpp,parallel\_cpp},
-xtick=data,
-x tick label style={rotate=30,anchor=east},
-legend pos=north west,
-width=\textwidth,
-height=6cm
-]
+MS5 & \makecell{4.33 \\ $0.28\times$}
+    & \makecell{0.92 \\ $1.34\times$}
+    & \makecell{1.23 \\ $1.00\times$}
+    & \makecell{0.20 \\ $6.22\times$} \\
 
-\addplot coordinates {(serial\_torch,0.8637)(parallel\_torch,0.2239)(serial\_cpp,0.2414)(parallel\_cpp,0.0200)};
-\addlegendentry{names-1k}
+MM5 & \makecell{6.81 \\ $1.58\times$}
+    & \makecell{1.10 \\ $9.80\times$}
+    & \makecell{10.76 \\ $1.00\times$}
+    & \makecell{0.26 \\ $41.38\times$} \\
 
-\addplot coordinates {(serial\_torch,3.4358)(parallel\_torch,0.2367)(serial\_cpp,1.2110)(parallel\_cpp,0.0931)};
-\addlegendentry{names-5k}
+ML5 & \makecell{12.45 \\ $7.51\times$}
+    & \makecell{2.37 \\ $39.45\times$}
+    & \makecell{93.53 \\ $1.00\times$}
+    & \makecell{0.50 \\ $185.50\times$} \\
 
-\addplot coordinates {(serial\_torch,6.6577)(parallel\_torch,0.2420)(serial\_cpp,2.4464)(parallel\_cpp,0.1752)};
-\addlegendentry{names-10k}
+MVL5 & \makecell{20.20 \\ $16.21\times$}
+     & \makecell{5.79 \\ $56.50\times$}
+     & \makecell{327.28 \\ $1.00\times$}
+     & \makecell{1.07 \\ $307.03\times$} \\
 
-\addplot coordinates {(serial\_torch,21.7865)(parallel\_torch,0.2841)(serial\_cpp,43.8700)(parallel\_cpp,0.4510)};
-\addlegendentry{names-20k}
+MXL5 & \makecell{32.29 \\ $24.30\times$}
+     & \makecell{12.34 \\ $63.59\times$}
+     & \makecell{784.64 \\ $1.00\times$}
+     & \makecell{2.10 \\ $373.60\times$} \\
 
-\addplot coordinates {(serial\_torch,32.2511)(parallel\_torch,0.3111)(serial\_cpp,65.0316)(parallel\_cpp,0.6425)};
-\addlegendentry{names-30k}
-
-\end{axis}
-\end{tikzpicture}
-\caption{Forward pass runtime across name sizes}
-\end{subfigure}
-\hfill
-\begin{subfigure}{0.48\textwidth}
-\centering
-\begin{tikzpicture}
-\begin{axis}[
-title={Speedup vs Serial C++},
-ylabel={Speedup (×)},
-symbolic x coords={names-1k,names-5k,names-10k,names-20k,names-30k},
-xtick=data,
-x tick label style={rotate=30,anchor=east},
-width=\textwidth,
-height=6cm
-]
-
-\addplot coordinates {(names-1k,1.96)(names-5k,6.16)(names-10k,8.40)(names-20k,72.63)(names-30k,85.14)};
-
-\end{axis}
-\end{tikzpicture}
-\caption{Parallel speedup over serial C++}
-\end{subfigure}
-
-\caption{Performance comparison across dataset (name) sizes}
-\label{fig:names_combined}
-
-\end{figure}
-
-% ================= MODEL =================
-
-\begin{table}[H]
-\centering
-\begin{tabular}{lccccc}
-\hline
-\textbf{Preset} & \textbf{n\_layer} & \textbf{n\_embd} & \textbf{block\_size} & \textbf{n\_head} & \textbf{steps} \\
-\hline
-model-small-5k        & 1 & 64  & 512 & 4  & 5000 \\
-model-medium-5k       & 2 & 128 & 512 & 8  & 5000 \\
-model-large-5k        & 4 & 256 & 512 & 8  & 5000 \\
-model-very-large-5k   & 6 & 384 & 512 & 12 & 5000 \\
-model-extra-large-5k  & 8 & 512 & 512 & 16 & 5000 \\
-\hline
+\bottomrule
 \end{tabular}
-\caption{Model Size Configurations}
+\end{minipage}
+
+\caption{Runtime (top) and speedup (bottom) per method. \textbf{Speedup is relative to SC}}
 \end{table}
-
-\begin{figure}[H]
-\centering
-
-\begin{subfigure}{0.48\textwidth}
-\centering
-\begin{tikzpicture}
-\begin{axis}[
-title={Forward Pass Runtime},
-ylabel={Time (s)},
-ymode=log,
-symbolic x coords={serial\_torch,parallel\_torch,serial\_cpp,parallel\_cpp},
-xtick=data,
-x tick label style={rotate=30,anchor=east},
-legend pos=north west,
-width=\textwidth,
-height=6cm
-]
-
-\addplot coordinates {(serial\_torch,3.3999)(parallel\_torch,0.2348)(serial\_cpp,1.2103)(parallel\_cpp,0.0932)};
-\addlegendentry{model-small}
-
-\addplot coordinates {(serial\_torch,5.5876)(parallel\_torch,0.2438)(serial\_cpp,10.7280)(parallel\_cpp,0.1379)};
-\addlegendentry{model-medium}
-
-\addplot coordinates {(serial\_torch,10.0759)(parallel\_torch,0.2857)(serial\_cpp,93.2595)(parallel\_cpp,0.3460)};
-\addlegendentry{model-large}
-
-\addplot coordinates {(serial\_torch,14.6363)(parallel\_torch,0.3737)(serial\_cpp,327.6338)(parallel\_cpp,0.7426)};
-\addlegendentry{model-very-large}
-
-\addplot coordinates {(serial\_torch,19.3169)(parallel\_torch,0.4789)(serial\_cpp,779.8755)(parallel\_cpp,1.4909)};
-\addlegendentry{model-extra-large}
-
-\end{axis}
-\end{tikzpicture}
-\caption{Forward pass runtime across model sizes}
-\end{subfigure}
-\hfill
-\begin{subfigure}{0.48\textwidth}
-\centering
-\begin{tikzpicture}
-\begin{axis}[
-title={Speedup vs Serial C++},
-ylabel={Speedup (×)},
-symbolic x coords={
-model-small-5k,model-medium-5k,model-large-5k,model-very-large-5k,model-extra-large-5k},
-xtick=data,
-x tick label style={rotate=30,anchor=east},
-width=\textwidth,
-height=6cm
-]
-
-\addplot coordinates {
-(model-small-5k,6.22)
-(model-medium-5k,41.94)
-(model-large-5k,178.73)
-(model-very-large-5k,301.69)
-(model-extra-large-5k,371.79)
-};
-
-\end{axis}
-\end{tikzpicture}
-\caption{Parallel speedup over serial C++}
-\end{subfigure}
-
-\caption{Performance comparison across model scaling (fixed dataset size)}
-\label{fig:model_combined}
-
-\end{figure}

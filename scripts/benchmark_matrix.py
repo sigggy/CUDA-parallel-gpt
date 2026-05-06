@@ -37,11 +37,11 @@ BENCHMARK_RUNS: tuple[BenchmarkRun, ...] = (
     BenchmarkRun("names-30k",   n_layer=4, n_embd=128, block_size=512, n_head=8, steps=30000),
     BenchmarkRun("names-31k",   n_layer=4, n_embd=128, block_size=512, n_head=8, steps=31000),
     BenchmarkRun("names-32k",   n_layer=4, n_embd=128, block_size=512, n_head=8, steps=32000),
-    BenchmarkRun("model-small-1k", n_layer=1, n_embd=64, block_size=512, n_head=4, steps=5000),
-    BenchmarkRun("model-medium-1k", n_layer=2, n_embd=128, block_size=512, n_head=8, steps=5000),
-    BenchmarkRun("model-large-1k", n_layer=4, n_embd=256, block_size=512, n_head=8, steps=5000),
-    BenchmarkRun("model-very-large-1k", n_layer=6, n_embd=384, block_size=512, n_head=12, steps=5000),
-    BenchmarkRun("model-extra-large-1k", n_layer=8, n_embd=512, block_size=512, n_head=16, steps=5000),
+    BenchmarkRun("model-small-5k", n_layer=1, n_embd=64, block_size=512, n_head=4, steps=5000),
+    BenchmarkRun("model-medium-5k", n_layer=2, n_embd=128, block_size=512, n_head=8, steps=5000),
+    BenchmarkRun("model-large-5k", n_layer=4, n_embd=256, block_size=512, n_head=8, steps=5000),
+    BenchmarkRun("model-very-large-5k", n_layer=6, n_embd=384, block_size=512, n_head=12, steps=5000),
+    BenchmarkRun("model-extra-large-5k", n_layer=8, n_embd=512, block_size=512, n_head=16, steps=5000),
 )
 
 RUN_BY_LABEL = {run.label: run for run in BENCHMARK_RUNS}

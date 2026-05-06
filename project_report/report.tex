@@ -1,0 +1,87 @@
+\documentclass[sigconf,authorversion,nonacm]{acmart}
+
+\settopmatter{printacmref=false}
+
+\usepackage{amsmath}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{makecell}
+\usepackage{xcolor}
+
+\definecolor{attncolor}{RGB}{30,100,200}   % blue-ish
+\definecolor{mlpcolor}{RGB}{200,80,30}     % orange-ish
+\newcommand{\todoadd}[1]{%
+  \par\noindent
+  \begingroup
+  \setlength{\fboxsep}{4pt}%
+  \colorbox{yellow!35}{\parbox{\dimexpr\linewidth-2\fboxsep\relax}{\textbf{TODO add this:} #1}}%
+  \endgroup
+  \par
+}
+
+% Bold the full reference while keeping the entire phrase clickable.
+\newcommand{\strongtabref}[1]{\hyperref[#1]{\textbf{Table~\ref*{#1}}}}
+\newcommand{\strongfigref}[1]{\hyperref[#1]{\textbf{Figure~\ref*{#1}}}}
+\newcommand{\strongalgref}[1]{\hyperref[#1]{\textbf{Algorithm~\ref*{#1}}}}
+\newcommand{\strongappref}[1]{\hyperref[#1]{\textbf{Appendix~\ref*{#1}}}}
+\newcommand{\strongsecref}[1]{\hyperref[#1]{\textbf{Section~\ref*{#1}}}}
+
+\graphicspath{{figures/}}
+
+%%
+%% \BibTeX command to typeset BibTeX logo in the docs
+\AtBeginDocument{%
+  \providecommand\BibTeX{{%
+    Bib\TeX}}}
+
+\begin{document}
+
+\title{Parallelizing GPT-2 --- ``It works on my GPU''}
+
+\author{Jack ``Siggy'' Sigler}
+\affiliation{%
+ \institution{Colorado School of Mines}
+ \city{Golden}
+ \state{CO}
+ \country{USA}
+ }
+
+\author{Sam Abderholden}
+\affiliation{%
+ \institution{Colorado School of Mines}
+ \city{Golden}
+ \state{CO}
+ \country{USA}
+}
+
+\author{Dawson Matthews}
+\affiliation{%
+ \institution{Colorado School of Mines}
+ \city{Golden}
+ \state{CO}
+ \country{USA}
+}
+
+\maketitle
+
+\input{sections/01_introduction}
+\input{sections/02_serial_implementation}
+\input{sections/03_parallel_implementation}
+\input{sections/04_evaluation_strategy}
+\input{sections/05_performance_analysis}
+\input{sections/06_conclusion}
+\input{sections/07_source_resources}
+\input{sections/08_feedback}
+
+\clearpage
+\appendix
+\input{sections/09_appendix}
+
+\clearpage
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
+\end{document}

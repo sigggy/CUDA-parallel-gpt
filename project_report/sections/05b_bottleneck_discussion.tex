@@ -1,8 +1,5 @@
-\section{Bottleneck Discussion}
-\label{sec:bottleneck}
-
 To perform the bottleneck analysis, we utilized nvprof to perform a kernel-level profiling of our program. What we wanted to discover was what portions or kernel calls 
-were responsible the largest portion of program time. Below is the configuration for the model and training set size used in the profiling. The batch size
+were responsible the largest portion of program time. \strongtabref{tab:profile_config} shows the configuration for the model and training set size used in the profiling. The batch size
 parameter is only applicable to the second profiling result, after optimizations were introduced.
 \begin{table}[H]
 \centering
@@ -22,30 +19,32 @@ Number of Heads     & 16 \\
 \hline
 \end{tabular}
 \caption{Profiling Configuration Parameters}
+\label{tab:profile_config}
 \end{table}
 
-\begin{table}[H]
+\begin{table}[t]
 \centering
-\small
-\renewcommand{\arraystretch}{1.2}
-\setlength{\tabcolsep}{6pt}
+\scriptsize
+\renewcommand{\arraystretch}{1.1}
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lccccc}
 \hline
-\textbf{Kernel} & \textbf{Time (\%)} & \textbf{Total Time} & \textbf{Calls} & \textbf{Avg} & \textbf{Max} \\
+\textbf{Kernel} & \makecell{\textbf{Time} \\ \textbf{(\%)}} & \makecell{\textbf{Total} \\ \textbf{(s)}} & \textbf{Calls} & \makecell{\textbf{Avg} \\ \textbf{($\mu$s)}} & \makecell{\textbf{Max} \\ \textbf{($\mu$s)}} \\
 \hline
-linear\_kernel & 80.86\% & 70.3209 s & 490000 & 143.51 $\mu$s & 464.80 $\mu$s \\
-rmsnorm\_kernel & 10.33\% & 8.98660 s & 170000 & 52.862 $\mu$s & 82.272 $\mu$s \\
-self\_attn\_kernel & 7.33\% & 6.37602 s & 80000 & 79.700 $\mu$s & 162.91 $\mu$s \\
-cross\_entropy\_loss\_kernel & 0.85\% & 736.82 ms & 10000 & 73.682 $\mu$s & 149.54 $\mu$s \\
-add\_vec\_kernel & 0.25\% & 217.70 ms & 160000 & 1.3600 $\mu$s & 1.9520 $\mu$s \\
-relu\_kernel & 0.13\% & 109.93 ms & 80000 & 1.3740 $\mu$s & 2.1440 $\mu$s \\
-embedding\_lookup\_kernel & 0.02\% & 16.086 ms & 10000 & 1.6080 $\mu$s & 2.1760 $\mu$s \\
+linear & 80.86 & 70.32 & 490k & 143.51 & 464.80 \\
+RMSNorm & 10.33 & 8.99 & 170k & 52.86 & 82.27 \\
+self-attn & 7.33 & 6.38 & 80k & 79.70 & 162.91 \\
+cross-ent. & 0.85 & 0.74 & 10k & 73.68 & 149.54 \\
+resid. add & 0.25 & 0.22 & 160k & 1.36 & 1.95 \\
+ReLU & 0.13 & 0.11 & 80k & 1.37 & 2.14 \\
+embed. look. & 0.02 & 0.02 & 10k & 1.61 & 2.18 \\
 \hline
 \end{tabular}
 \caption{CUDA Kernel Profiling Results for Parallel Implementation Pre-Optimizations}
+\label{tab:profile_pre_optimization}
 \end{table}
 
-What we noticed in the above table were two things:
+What we noticed in \strongtabref{tab:profile_pre_optimization} were two things:
 \begin{enumerate}
     \item Over $80\%$ of execution time was spent in the \texttt{linear\_kernel}.
     \item The average time per kernel was reasonable, but we had many invocations of them.
@@ -54,14 +53,14 @@ From these investigations, we concluded that the most effective path forward was
 
 Building on this improvement, we next targeted batching, a cornerstone of modern training systems. Processing individual tokens or sequences underutilizes the parallel compute capabilities of GPUs. By restructuring our implementation to process multiple sequences simultaneously in a single batch, we were able to more effectively leverage GPU parallelism and further improve overall throughput.
 
-Figure ~\ref{result:ablation} presents the ablation study used to evaluate the impact of our optimizations. Overall, the results demonstrate that these changes effectively reduce the runtime of the forward pass.
+\strongfigref{result:ablation} presents the ablation study used to evaluate the impact of our optimizations. Overall, the results demonstrate that these changes effectively reduce the runtime of the forward pass.
 One notable observation is that the tiling optimization, in isolation, led to an increase in runtime. This behavior is expected for smaller problem sizes where batching is not applied. In such cases, the overhead associated with thread synchronization and shared memory transfers outweighs the benefits of improved data locality, resulting in a net slowdown.
 
-\begin{figure}[H]
+\begin{figure}[t]
     \centering
-    \includegraphics[width=0.8\textwidth]{cuda_ablation_names.png}
+    \includegraphics[width=\linewidth]{cuda_ablation_names.png}
     \caption{Ablation Study of Implemented Optimizations}
     \label{result:ablation}
 \end{figure}
 
-Our profiling results for the optimized implementation can be found in Appendix~\ref{appendix:profile}
+Our profiling results for the optimized implementation can be found in \strongappref{appendix:profile}.

@@ -388,7 +388,7 @@ def run_benchmark(
     total_program_seconds = time.perf_counter() - benchmark_start
     print(
         "mode=benchmark "
-        "method=batched_torch "
+        "method=parallel_torch "
         f"device={device} "
         f"preset={label} "
         f"requested_steps={requested_steps} "

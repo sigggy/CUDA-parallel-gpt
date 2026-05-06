@@ -1,14 +1,11 @@
-\section{Parallelization Strategy}
-
-Using the \textit{perf time} command we were able to get high level timing characteristics of the C++ baseline program, especially how much time our C++ baseline was performing OS overhead versus useful compute work. With nearly zero system time (0.008s out of 2.74s total) and only 269 context switches, the program runs almost entirely in userspace with negligible OS overhead. An IPC of 3.06 with 0.999 CPUs utilized confirms the single core is saturated with compute for the full duration. Next, we used \textit{perf record} in order to perform a call stack analysis of where the program was spending its CPU time. 
-We found that \textbf{99.4\%} of runtime is spent in linear matrix multiplications, with \textbf{70.1\%} occurring in the MLP and \textbf{28.3\%} in attention (note the program spends around 0.4\% performing rmnsnorm, Softmax, and embedding operations). While attention is often considered the bottleneck in Transformer models, this aligns with our earlier complexity analysis, as the approximately constant sequence length causes the $d^2$ term to dominate, making the MLP the primary contributor to runtime.
+\section{Parallel Implementation}
 
 Based on the serial workload analysis, our parallelization strategy focuses on exposing more independent work to the GPU. The original \textit{microgpt} structure processes one name at a time and then one token at a time within that name. 
 This creates very little parallel work per operation, especially because the names are short.
 
-While this CPU-side analysis identifies the dominant computational patterns, it does not capture GPU-specific bottlenecks such as memory access and kernel efficiency. To guide implementation decisions at the GPU level, we additionally performed a bottleneck analysis using nvprof on an initial CUDA implementation (see Section~\ref{sec:bottleneck}). The impact of the resulting design choices is evaluated through an ablation study in that same section.
+While this CPU-side analysis identifies the dominant computational patterns, it does not capture GPU-specific bottlenecks such as memory access and kernel efficiency. To guide implementation decisions at the GPU level, we additionally performed a bottleneck analysis using nvprof on an initial CUDA implementation (see \strongsecref{sec:bottleneck}). The impact of the resulting design choices is evaluated through an ablation study in \strongsecref{sec:bottleneck}.
 
-The nvprof analysis directly informed three key optimizations: introducing batching, implementing tiled matrix multiplication, switching from double to float precision. To increase available parallelism, we batch multiple names together so each kernel operates over many sequences and token positions at once, as shown in Algorithm~\ref{alg:batched}. 
+The nvprof analysis directly informed three key optimizations: introducing batching, implementing tiled matrix multiplication, switching from double to float precision. To increase available parallelism, we batch multiple names together so each kernel operates over many sequences and token positions at once, as shown in \strongalgref{alg:batched}. 
 We denote the batch size as $B = |\mathcal{B}|$ and represent each batch as a tensor of shape $(|\mathcal{B}|, T, d)$. To reduce CUDA kernel complexity, we preprocess the names into batches where all sequences in a batch have the same length.
 \begin{algorithm}[H]
 \caption{High-Level Batched Forward Pass}
@@ -38,7 +35,7 @@ We denote the batch size as $B = |\mathcal{B}|$ and represent each batch as a te
 
 Furthermore, our strategy focuses on exposing parallelism at the level of individual tensor elements, rather than at the level of tokens or sequences. This allows each CUDA kernel to operate over $|B| \cdot T \cdot d$ elements simultaneously, significantly increasing available work per launch compared to the serial implementation. 
 
-We achieve this by decomposing the forward pass into a sequence of CUDA kernels, each operating at a finer granularity over the batched tensor. Rather than treating attention and MLP as monolithic operations, we explicitly map each sub-operation (RMSNorm, linear projections, attention, and residual additions) to separate GPU kernels. This decomposition is shown in Algorithm~\ref{alg:layer}, where each step corresponds directly to a kernel launch in our implementation. Since each operation is implemented as its own kernel, we were able to reduce the granularity of the linear matrix multiplication from per-token to per-output-element, and further optimize it using tiling (as motivated by our GPU bottleneck analysis).
+We achieve this by decomposing the forward pass into a sequence of CUDA kernels, each operating at a finer granularity over the batched tensor. Rather than treating attention and MLP as monolithic operations, we explicitly map each sub-operation (RMSNorm, linear projections, attention, and residual additions) to separate GPU kernels. This decomposition is shown in \strongalgref{alg:layer}, where each step corresponds directly to a kernel launch in our implementation. Since each operation is implemented as its own kernel, we were able to reduce the granularity of the linear matrix multiplication from per-token to per-output-element, and further optimize it using tiling (as motivated by our GPU bottleneck analysis).
 \begin{algorithm}[H]
 \caption{Layer-by-Layer GPU Forward Pass}
 \label{alg:layer}
@@ -63,10 +60,10 @@ We achieve this by decomposing the forward pass into a sequence of CUDA kernels,
 \end{algorithmic}
 \end{algorithm}
 
-Each operation in Algorithm~\ref{alg:layer} is implemented as a dedicated CUDA kernel, as summarized in Table~\ref{tab:kernels}.
+Each operation in \strongalgref{alg:layer} is implemented as a dedicated CUDA kernel, as summarized in \strongtabref{tab:kernels}.
 
 
-\begin{table}[h]
+\begin{table*}[t]
 \centering
 \begin{tabular}{l l l}
 \toprule
@@ -83,7 +80,7 @@ CrossEntropy & single thread & one thread loops over all $(B,T,\text{vocab})$ to
 \end{tabular}
 \caption{Kernel decomposition with thread granularity and execution details.}
 \label{tab:kernels}
-\end{table}
+\end{table*}
 
 From a systems perspective, the full model is transferred to the GPU once at initialization, while a reusable workspace is allocated once per batch. This avoids repeated host-device transfers and ensures that all intermediate activations remain resident on the GPU throughout the forward pass.
 

@@ -1,3 +1,24 @@
 \section{Conclusion}
 
-\todoadd{Summarize the final CUDA implementation, restate the most important performance takeaways relative to the serial baseline, discuss the main bottlenecks or limitations that remain, and note concrete directions for future improvement.}
+In this project, we successfully transitioned the GPT-2 forward pass from a sequential Python implementation to a 
+high-performance, parallelized CUDA C++ application. By identifying and addressing the bottlenecks 
+inherent in serial execution, we demonstrated the immense computational advantages of GPUs for transformer-based 
+architectures.
+
+Our final implementation leverages several important parallel computing techniques: batched processing of sequences, tiled 
+matrix multiplication, and a transition from double-precision to single-precision floating point accuracy. The 
+results show the effectiveness of these strategies, achieving a speedup of over 10,000$\times$ compared to the serial Python 
+baseline and over 500$\times$ compared to the serial C++ implementation on large-scale model configurations. Notably, our 
+CUDA implementation outperformed the PyTorch implementation in several benchmarks, especially in smaller 
+to mid-sized workloads where Python overhead is more pronounced.
+
+However, our performance analysis also revealed that while our CUDA implementation is very powerful, its scaling 
+behavior for extremely large datasets and model sizes slightly lags behind that of industry-standard frameworks like 
+PyTorch. This suggests that further optimizations, such as more sophisticated memory coalescing, reducing 
+global memory traffic between operations, and the use of specialized hardware features like Tensor Cores, would be 
+necessary to maintain a performance advantage given larger models.
+
+Future work could extend this project by implementing the backward pass to support full model training, reducing memory 
+usage by further reducing floating point precision, and exploring multi-GPU parallelism. Ultimately, this project serves 
+as a clear demonstration of how parallel computing principles are the driving forces behind the modern era of 
+large language models.

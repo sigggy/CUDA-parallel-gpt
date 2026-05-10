@@ -1,3 +1,18 @@
 \section{Introduction of the Paper and the Targeted Problem}
 
-\todoadd{Introduce the targeted problem, motivate why accelerating the forward pass of a GPT-style model matters, summarize the serial-to-CUDA progression used in this project, and briefly preview the main performance results and contributions.}
+In this project, we discuss the techniques behind parallelizing the GPT-2 machine learning architecture. Generative 
+pre-trained transformer (GPT) models are the machine learning models that power modern large language models (LLMs) and were the 
+breakthrough that sparked the worldwide obsession with language models. One of the challenges in machine learning is 
+finding ways to reduce the time it takes to train models. One of the reasons the GPT model was so popular was due to how 
+much of its process could be parallelized. Parallelizing GPT is what enables modern language models to be trained and used 
+by anyone with fast results.
+
+In our implementation, we will convert the forward pass portion of GPT-2 training from a serial Python script into a 
+parallel C++ program utilizing CUDA to harness GPU parallelization. The goal of our project is to introduce as much speedup 
+as possible through parallelization. We attempt to reach this goal by implementing batched processing of tokens, tiled 
+matrix multiplication, floating point precision reduction, and other techniques to be discussed in this paper.
+
+Due to the highly parallelizable nature of GPT-2, our results show extremely high speedup of the parallel CUDA approach over 
+the serial approach. We achieved speedup factors of over 10,000 when comparing against our serial Python implementation, 
+and over 500 when comparing against our serial C++ implementation. Our results showcase why GPUs have become so important in 
+the machine learning industry, and why they will continue to be important for the foreseeable future.
